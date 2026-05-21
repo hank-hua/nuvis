@@ -1,0 +1,10 @@
+[project]
+name = "nuvis"
+version = "0.1.0"
+description = "A Python package for visualising neutrino oscillation probability using NuFast and Streamlit."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "plotly>=6.7.0",
+    "streamlit>=1.57.0",
+]
