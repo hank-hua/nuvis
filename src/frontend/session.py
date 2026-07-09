@@ -1,15 +1,16 @@
 import streamlit as st
 
+from streamlit.runtime.state import SessionStateProxy
 from backend.defaults import DEFAULT_VALUES
 from backend.parameter import ParameterSet
 
 
-def ensure_session_defaults():
+def ensure_session_defaults() -> None:
     for k, v in DEFAULT_VALUES.to_dict().items():
         st.session_state.setdefault(k, v)
 
 
-def get_session_state() -> st.session_state:
+def get_session_state() -> SessionStateProxy:
     """Get the current streamlit session state."""
     ensure_session_defaults()
     return st.session_state

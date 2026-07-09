@@ -1,7 +1,7 @@
 import numpy as np
 import streamlit as st
 
-from frontend.components import parameter_setter
+from frontend.components import parameter_range_setter, parameter_setter
 from frontend.plotter import Plotter
 from frontend.session import get_pars_from_session
 
@@ -14,17 +14,16 @@ st.write("1D probability visualiser.")
 
 parameter_setter()
 
+x_var, x_values = parameter_range_setter("E", key_prefix="1d_x_")
+
+do_animate = st.checkbox("Animate", value=True)
+
 # --- Plot configuration -----------------------------------------------------
 
-ENERGY_MIN_GEV = 0.0
-ENERGY_MAX_GEV = 10.0
-ENERGY_STEPS = 100
-DELTA_STEPS = 100
-
 PLOT_CONFIG = dict(
-    x_var="E",
+    x_var=x_var,
     y_var="mu_e",
-    x_label="Energy (GeV)",
+    x_label=x_var,
     y_label="P(ν_μ→ν_e)",
     title="Muon Neutrino Survival Probability",
     line_color="blue",
@@ -33,16 +32,17 @@ PLOT_CONFIG = dict(
 
 # --- Plotting ---------------------------------------------------------------
 
-x_values = np.linspace(ENERGY_MIN_GEV, ENERGY_MAX_GEV, ENERGY_STEPS)
-animate_values = np.linspace(-np.pi, np.pi, DELTA_STEPS)
-
 plotter = Plotter(pars=get_pars_from_session())
 
-plotter.animate(
-    plot_method="1d",
-    animate_var="delta",
-    animate_values=animate_values,
-    x_values=x_values,
-    **PLOT_CONFIG,
-)
+if do_animate:
+    anim_var, anim_values = parameter_range_setter(
+        "delta", key_prefix="1d_anim_", use_default_range=True
+    )
+    plotter.animate(
+        plot_method="1d",
+        animate_var=anim_var,
+        animate_values=anim_values,
+        x_values=x_values,
+        **PLOT_CONFIG,
+    )
 plotter.show()

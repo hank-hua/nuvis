@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import math
 from dataclasses import asdict, dataclass, fields
 from dataclasses import replace as dc_replace
 from typing import Dict, Iterator

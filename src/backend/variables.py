@@ -1,0 +1,24 @@
+"""Module for defining variable settings for plotting."""
+
+from dataclasses import dataclass
+
+@dataclass(frozen=True)
+class VariableSetting:
+    """Immutable container for variable settings."""
+
+    name: str
+    default_value: float
+    min_value: float
+    max_value: float
+    default_low: float
+    default_high: float
+    num_steps: int
+    scale: str = "linear"
+
+    def __post_init__(self):
+        if self.min_value >= self.max_value:
+            raise ValueError(f"min_value must be less than max_value, got {self.min_value} >= {self.max_value}")
+        if self.num_steps < 2:
+            raise ValueError(f"num_steps must be at least 2, got {self.num_steps}")
+        if self.scale not in ("linear", "log"):
+            raise ValueError(f"scale must be 'linear' or 'log', got {self.scale}")
