@@ -5,6 +5,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from .parameter import ParameterSet
+
 _nufast_path = (
     Path(__file__).resolve().parents[2] / "external" / "nufast" / "py" / "NuFast.py"
 )
@@ -74,7 +76,7 @@ columns_mu = ["mu_e", "mu_mu", "mu_tau"]
 columns_tau = ["tau_e", "tau_mu", "tau_tau"]
 
 
-def prob_calcer_full(pars, n_newton=5, matter=True, anti=False):
+def prob_calcer_full(pars: ParameterSet, n_newton=5, matter=True, anti=False):
     E = -abs(pars["E"]) if anti else abs(pars["E"])
     if matter:
         p = NuFast.Probability_Matter_LBL(
@@ -82,12 +84,12 @@ def prob_calcer_full(pars, n_newton=5, matter=True, anti=False):
             pars["s13sq"],
             pars["s23sq"],
             pars["delta"],
-            pars["Dmsq21"],
-            pars["Dmsq31"],
+            pars["dmsq21"],
+            pars["dmsq31"],
             pars["L"],
             E,
             pars["rho"],
-            pars["Ye"],
+            pars["ye"],
             n_newton,
         )
     else:
@@ -104,7 +106,9 @@ def prob_calcer_full(pars, n_newton=5, matter=True, anti=False):
     return p.flatten()
 
 
-def get_probs_df(pars, x_values, x_var="E", y_var="mu_mu", matter=True, anti=False):
+def get_probs_df(
+    pars: ParameterSet, x_values, x_var="E", y_var="mu_mu", matter=True, anti=False
+):
     x_var_calc = x_var
     x_values_calc = x_values
     if x_var == "L/E":
@@ -115,7 +119,7 @@ def get_probs_df(pars, x_values, x_var="E", y_var="mu_mu", matter=True, anti=Fal
     y_values = np.zeros_like(x_values)
     for i in range(x_values.size):
         y_values[i] = prob_calcer_full(
-            {**pars, x_var_calc: x_values_calc[i]}, matter=matter, anti=anti
+            pars.replace(**{x_var_calc: x_values_calc[i]}), matter=matter, anti=anti
         )[y_index]
     data[y_var] = y_values
     return pd.DataFrame(data)
