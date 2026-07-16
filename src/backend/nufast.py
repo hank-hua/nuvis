@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from importlib.machinery import SourceFileLoader
 from importlib.util import module_from_spec, spec_from_loader
 from pathlib import Path
@@ -5,6 +6,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from .defaults import COLUMNS, N_NEWTON
 from .parameter import ParameterSet
 
 _nufast_path = (
@@ -24,60 +26,32 @@ _spec.loader.exec_module(_module)
 
 NuFast = _module
 
-columns = [
-    "e_e",
-    "e_mu",
-    "e_tau",
-    "mu_e",
-    "mu_mu",
-    "mu_tau",
-    "tau_e",
-    "tau_mu",
-    "tau_tau",
-]
-columns_latex = [
-    r"$\nu_e\to\nu_e$",
-    r"$\nu_e\to\nu_\mu$",
-    r"$\nu_e\to\nu_\tau$",
-    r"$\nu_\mu\to\nu_e$",
-    r"$\nu_\mu\to\nu_\mu$",
-    r"$\nu_\mu\to\nu_\tau$",
-    r"$\nu_\tau\to\nu_e$",
-    r"$\nu_\tau\to\nu_\mu$",
-    r"$\nu_\tau\to\nu_\tau$",
-]
-columns_pretty = [
-    "P(ν_e→ν_e)",
-    "P(ν_e→ν_μ)",
-    "P(ν_e→ν_τ)",
-    "P(ν_μ→ν_e)",
-    "P(ν_μ→ν_μ)",
-    "P(ν_μ→ν_τ)",
-    "P(ν_τ→ν_e)",
-    "P(ν_τ→ν_μ)",
-    "P(ν_τ→ν_τ)",
-]
-columns_anti_pretty = [
-    "P(ν̅_e→ν̅_e)",
-    "P(ν̅_e→ν̅_μ)",
-    "P(ν̅_e→ν̅_τ)",
-    "P(ν̅_μ→ν̅_e)",
-    "P(ν̅_μ→ν̅_μ)",
-    "P(ν̅_μ→ν̅_τ)",
-    "P(ν̅_τ→ν̅_e)",
-    "P(ν̅_τ→ν̅_μ)",
-    "P(ν̅_τ→ν̅_τ)",
-]
-column_to_pretty = dict(zip(columns, columns_pretty))
-pretty_to_column = dict(zip(columns_pretty, columns))
-column_to_anti_pretty = dict(zip(columns, columns_anti_pretty))
-columns_e = ["e_e", "e_mu", "e_tau"]
-columns_mu = ["mu_e", "mu_mu", "mu_tau"]
-columns_tau = ["tau_e", "tau_mu", "tau_tau"]
+
+@dataclass
+class OscillationResult:
+    probs: np.ndarray
+
+    def _resolve(self, channels: str | list[str]) -> list[int]:
+        """Resolve one or more channel names to indices."""
+        if isinstance(channels, str):
+            channels = [channels]
+        invalid = [c for c in channels if c not in COLUMNS]
+        if invalid:
+            raise ValueError(f"Unknown channels: {invalid}. Must be one of {COLUMNS}")
+        return [COLUMNS.index(c) for c in channels]
+
+    def __getitem__(self, channels: str | list[str]) -> np.ndarray:
+        """Return probabilities for one or more channels."""
+        return self.probs[self._resolve(channels)]
 
 
-def prob_calcer_full(pars: ParameterSet, n_newton=5, matter=True, anti=False):
-    E = -abs(pars["E"]) if anti else abs(pars["E"])
+def calc_prob(
+    pars: ParameterSet, n_newton: int = N_NEWTON, matter: bool = True
+) -> OscillationResult:
+    """
+    Calculate the oscillation probabilities for given parameters.
+    Returns an OscillationResult containing neutrino and antineutrino probabilities for all channels.
+    """
     if matter:
         p = NuFast.Probability_Matter_LBL(
             pars["s12sq"],
@@ -87,7 +61,20 @@ def prob_calcer_full(pars: ParameterSet, n_newton=5, matter=True, anti=False):
             pars["dmsq21"],
             pars["dmsq31"],
             pars["L"],
-            E,
+            pars["E"],
+            pars["rho"],
+            pars["ye"],
+            n_newton,
+        )
+        p_anti = NuFast.Probability_Matter_LBL(
+            pars["s12sq"],
+            pars["s13sq"],
+            pars["s23sq"],
+            pars["delta"],
+            pars["dmsq21"],
+            pars["dmsq31"],
+            pars["L"],
+            -pars["E"],
             pars["rho"],
             pars["ye"],
             n_newton,
@@ -101,28 +88,42 @@ def prob_calcer_full(pars: ParameterSet, n_newton=5, matter=True, anti=False):
             pars["Dmsq21"],
             pars["Dmsq31"],
             pars["L"],
-            E,
+            pars["E"],
         )
-    return p.flatten()
+        p_anti = NuFast.Probability_Vacuum_LBL(
+            pars["s12sq"],
+            pars["s13sq"],
+            pars["s23sq"],
+            pars["delta"],
+            pars["Dmsq21"],
+            pars["Dmsq31"],
+            pars["L"],
+            -pars["E"],
+        )
+
+    return OscillationResult(np.concatenate([p.flatten(), p_anti.flatten()]))
 
 
-def get_probs_df(
-    pars: ParameterSet, x_values, x_var="E", y_var="mu_mu", matter=True, anti=False
-):
+def get_probs_1d(
+    pars: ParameterSet,
+    x_values: np.ndarray,
+    x_var: str = "E",
+    y_vars: list[str] = ["mu_mu"],
+    matter: bool = True,
+) -> pd.DataFrame:
+    """Calculate the oscillation probabilities for a 1D range of x_values.
+    Returns a DataFrame with columns for x_var and y_var."""
     x_var_calc = x_var
     x_values_calc = x_values
     if x_var == "L/E":
         x_values_calc = pars["L"] / x_values
         x_var_calc = "E"
-    data = {x_var: x_values}
-    y_index = columns.index(y_var)
-    y_values = np.zeros_like(x_values)
-    for i in range(x_values.size):
-        y_values[i] = prob_calcer_full(
-            pars.replace(**{x_var_calc: x_values_calc[i]}), matter=matter, anti=anti
-        )[y_index]
-    data[y_var] = y_values
-    return pd.DataFrame(data)
+    df = pd.DataFrame({x_var: x_values})
+    results = [
+        calc_prob(pars.replace(**{x_var_calc: x}), matter=matter) for x in x_values_calc
+    ]
+    df[y_vars] = np.array([r[y_vars] for r in results])
+    return df
 
 
 def get_probs_mesh(
@@ -145,11 +146,11 @@ def get_probs_mesh(
     if y_var == "L/E":
         y_values_calc = pars["L"] / y_values
         y_var_calc = "E"
-    if z_var not in columns:
+    if z_var not in COLUMNS:
         raise ValueError("z_var must be one of the probability channels")
     X, Y = np.meshgrid(x_values, y_values)
     Z = np.zeros_like(X)
-    z_index = columns.index(z_var)
+    z_index = COLUMNS.index(z_var)
     for idx in np.ndindex(X.shape):
         i, j = idx
         params = {
@@ -157,7 +158,7 @@ def get_probs_mesh(
             x_var_calc: x_values_calc[j],
             y_var_calc: y_values_calc[i],
         }
-        Z[i, j] = prob_calcer_full(params, matter=matter, anti=anti)[z_index]
+        Z[i, j] = calc_prob(params, matter=matter, anti=anti)[z_index]
 
     return Z, (X, Y)
 
@@ -172,16 +173,16 @@ def get_ellipse(
     y_anti=False,
     matter=True,
 ):
-    if x_var not in columns or y_var not in columns:
+    if x_var not in COLUMNS or y_var not in COLUMNS:
         raise ValueError("x_var and y_var must be one of the probability channels")
-    x_index = columns.index(x_var)
-    y_index = columns.index(y_var)
+    x_index = COLUMNS.index(x_var)
+    y_index = COLUMNS.index(y_var)
     ellipse = np.zeros((len(t_values), 2))
     if t_var == "L/E":
         t_values = pars["L"] / t_values
         t_var = "E"
     for i, t in enumerate(t_values):
         pars_t = {**pars, t_var: t}
-        ellipse[i, 0] = prob_calcer_full(pars_t, matter=matter, anti=x_anti)[x_index]
-        ellipse[i, 1] = prob_calcer_full(pars_t, matter=matter, anti=y_anti)[y_index]
+        ellipse[i, 0] = calc_prob(pars_t, matter=matter, anti=x_anti)[x_index]
+        ellipse[i, 1] = calc_prob(pars_t, matter=matter, anti=y_anti)[y_index]
     return ellipse

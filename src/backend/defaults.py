@@ -129,3 +129,68 @@ VARIABLE_SETTINGS = {
 }
 
 VARIABLE_LIST = list(VARIABLE_SETTINGS.keys())
+
+N_NEWTON = 5
+
+COLUMNS = [
+    "e_e",
+    "e_mu",
+    "e_tau",
+    "mu_e",
+    "mu_mu",
+    "mu_tau",
+    "tau_e",
+    "tau_mu",
+    "tau_tau",
+    "anti_e_e",
+    "anti_e_mu",
+    "anti_e_tau",
+    "anti_mu_e",
+    "anti_mu_mu",
+    "anti_mu_tau",
+    "anti_tau_e",
+    "anti_tau_mu",
+    "anti_tau_tau",
+]
+COLUMNS_LATEX = [
+    r"$\nu_e\to\nu_e$",
+    r"$\nu_e\to\nu_\mu$",
+    r"$\nu_e\to\nu_\tau$",
+    r"$\nu_\mu\to\nu_e$",
+    r"$\nu_\mu\to\nu_\mu$",
+    r"$\nu_\mu\to\nu_\tau$",
+    r"$\nu_\tau\to\nu_e$",
+    r"$\nu_\tau\to\nu_\mu$",
+    r"$\nu_\tau\to\nu_\tau$",
+    r"$\bar{\nu}_e\to\bar{\nu}_e$",
+    r"$\bar{\nu}_e\to\bar{\nu}_\mu$",
+    r"$\bar{\nu}_e\to\bar{\nu}_\tau$",
+    r"$\bar{\nu}_\mu\to\bar{\nu}_e$",
+    r"$\bar{\nu}_\mu\to\bar{\nu}_\mu$",
+    r"$\bar{\nu}_\mu\to\bar{\nu}_\tau$",
+    r"$\bar{\nu}_\tau\to\bar{\nu}_e$",
+    r"$\bar{\nu}_\tau\to\bar{\nu}_\mu$",
+    r"$\bar{\nu}_\tau\to\bar{\nu}_\tau$",
+]
+COLUMNS_PRETTY = [
+    "P(ν_e→ν_e)",
+    "P(ν_e→ν_μ)",
+    "P(ν_e→ν_τ)",
+    "P(ν_μ→ν_e)",
+    "P(ν_μ→ν_μ)",
+    "P(ν_μ→ν_τ)",
+    "P(ν_τ→ν_e)",
+    "P(ν_τ→ν_μ)",
+    "P(ν_τ→ν_τ)",
+    "P(ν̅_e→ν̅_e)",
+    "P(ν̅_e→ν̅_μ)",
+    "P(ν̅_e→ν̅_τ)",
+    "P(ν̅_μ→ν̅_e)",
+    "P(ν̅_μ→ν̅_μ)",
+    "P(ν̅_μ→ν̅_τ)",
+    "P(ν̅_τ→ν̅_e)",
+    "P(ν̅_τ→ν̅_μ)",
+    "P(ν̅_τ→ν̅_τ)",
+]
+COLUMN_TO_PRETTY = dict(zip(COLUMNS, COLUMNS_PRETTY))
+PRETTY_TO_COLUMN = dict(zip(COLUMNS_PRETTY, COLUMNS))

@@ -4,7 +4,7 @@ import numpy as np
 import streamlit as st
 from numpy.typing import NDArray
 
-from backend.defaults import VARIABLE_LIST, VARIABLE_SETTINGS
+from backend.defaults import COLUMNS, COLUMNS_PRETTY, VARIABLE_LIST, VARIABLE_SETTINGS
 from backend.parameter import ParameterSet
 from frontend.session import (
     get_pars_from_session,
@@ -126,3 +126,28 @@ def parameter_range_setter(
             values = np.geomspace(min_value, max_value, int(num_steps))
 
     return param_name, values
+
+
+def osc_channel_selector(default_channel: str = "mu_e") -> list[str]:
+    """
+    A Streamlit component for selecting the oscillation channel.
+    """
+    default_index = -1
+    if default_channel in COLUMNS:
+        default_index = COLUMNS.index(default_channel)
+    if default_index in COLUMNS_PRETTY:
+        default_index = COLUMNS_PRETTY.index(default_channel)
+    if default_index == -1:
+        raise ValueError(
+            f"Default channel '{default_channel}' is not in COLUMNS, COLUMNS_PRETTY."
+        )
+
+    channels = st.multiselect(
+        "Select oscillation channel(s)",
+        options=COLUMNS_PRETTY,
+        default=[COLUMNS_PRETTY[default_index]],
+    )
+
+    channels = [COLUMNS[COLUMNS_PRETTY.index(c)] for c in channels]
+
+    return channels

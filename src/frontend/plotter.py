@@ -7,7 +7,8 @@ from typing import Callable, Sequence
 import plotly.graph_objects as go
 import streamlit as st
 
-from backend.nufast import get_probs_df
+from backend.defaults import COLUMN_TO_PRETTY
+from backend.nufast import get_probs_1d
 from backend.parameter import ParameterSet
 
 
@@ -25,7 +26,6 @@ class Plotter:
     ):
         self.pars = pars
         self.matter = matter
-        self.anti = anti
         self.frame_duration = frame_duration
         self.fig: go.Figure | None = None
 
@@ -66,14 +66,14 @@ class Plotter:
         """
         if plot_method == "1d":
             x_var = plot_kwargs.get("x_var", "E")
-            y_var = plot_kwargs.get("y_var", "mu_mu")
+            y_var = plot_kwargs.get("y_var", "Probability")
             x_label = self._resolve_label(x_var, x_label)
             y_label = self._resolve_label(y_var, y_label)
             title = title or y_label
         elif plot_method == "2d":
             x_var = plot_kwargs.get("x_var", "E")
             y_var = plot_kwargs.get("y_var", "L")
-            z_var = plot_kwargs.get("z_var", "e_mu")
+            z_var = plot_kwargs.get("z_var", "Probability")
             x_label = self._resolve_label(x_var, x_label)
             y_label = self._resolve_label(y_var, y_label)
             title = title or self._resolve_label(z_var, None)
@@ -122,6 +122,7 @@ class Plotter:
             y=df[y_var],
             mode="lines",
             line=dict(width=line_width, color=line_color),
+            name=y_label,
             hovertemplate=(f"{x_var}: %{{x}}<br>{y_label}: %{{y:.4f}}<extra></extra>"),
         )
 
@@ -140,8 +141,8 @@ class Plotter:
         self,
         x_values: Sequence[float],
         x_var: str = "E",
-        y_var: str = "mu_mu",
-        line_color: str | None = None,
+        y_vars: list[str] = ["mu_mu"],
+        line_colors: list[str] | None = None,
         line_width: int = 2,
         **kwargs,
     ) -> list[go.Scatter]:
@@ -166,16 +167,25 @@ class Plotter:
         list[go.Scatter]
             Single-element list containing the scatter trace.
         """
-        df = get_probs_df(
+        df = get_probs_1d(
             self.pars,
             x_values,
             x_var=x_var,
-            y_var=y_var,
+            y_vars=y_vars,
             matter=self.matter,
-            anti=self.anti,
         )
-        y_label = self._resolve_label(y_var, None)
-        return [self._build_scatter(df, x_var, y_var, y_label, line_color, line_width)]
+        y_labels = [COLUMN_TO_PRETTY[y_var] for y_var in y_vars]
+        return [
+            self._build_scatter(
+                df,
+                x_var,
+                y_vars[i],
+                y_labels[i],
+                line_colors[i] if line_colors else None,
+                line_width,
+            )
+            for i in range(len(y_vars))
+        ]
 
     # --- Public API ---------------------------------------------------------
 
@@ -183,11 +193,11 @@ class Plotter:
         self,
         x_values: Sequence[float],
         x_var: str = "E",
-        y_var: str = "mu_mu",
+        y_vars: list[str] = ["mu_mu"],
         x_label: str | None = None,
         y_label: str | None = None,
         title: str | None = None,
-        line_color: str | None = None,
+        line_colors: llist[str] | None = None,
         line_width: int = 2,
     ) -> go.Figure:
         """
@@ -219,12 +229,14 @@ class Plotter:
         """
         x_label, y_label, title = self._resolve_labels(
             "1d",
-            {"x_var": x_var, "y_var": y_var},
+            {"x_var": x_var, "y_var": y_vars},
             x_label,
             y_label,
             title,
         )
-        trace = self._get_1d_frame_data(x_values, x_var, y_var, line_color, line_width)
+        trace = self._get_1d_frame_data(
+            x_values, x_var, y_vars, line_colors, line_width
+        )
         self.fig = go.Figure(data=trace)
         self.fig.update_layout(
             title=title,

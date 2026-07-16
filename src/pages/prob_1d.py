@@ -1,7 +1,11 @@
 import numpy as np
 import streamlit as st
 
-from frontend.components import parameter_range_setter, parameter_setter
+from frontend.components import (
+    osc_channel_selector,
+    parameter_range_setter,
+    parameter_setter,
+)
 from frontend.plotter import Plotter
 from frontend.session import get_pars_from_session
 
@@ -18,15 +22,16 @@ x_var, x_values = parameter_range_setter("E", key_prefix="1d_x_")
 
 do_animate = st.checkbox("Animate", value=True)
 
+osc_chans = osc_channel_selector()
+
 # --- Plot configuration -----------------------------------------------------
 
 PLOT_CONFIG = dict(
     x_var=x_var,
-    y_var="mu_e",
+    y_vars=osc_chans,
     x_label=x_var,
-    y_label="P(ν_μ→ν_e)",
-    title="Muon Neutrino Survival Probability",
-    line_color="blue",
+    y_label="Probability",
+    title=f"Oscillation probabilities vs {x_var}",
     line_width=2,
 )
 
