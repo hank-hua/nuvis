@@ -1,6 +1,7 @@
 import numpy as np
 import streamlit as st
 
+from backend.defaults import COLUMN_TO_PRETTY
 from frontend.components import (
     osc_channel_selector,
     parameter_range_setter,
@@ -26,10 +27,10 @@ y_var, y_values = parameter_range_setter(
     "delta", key_prefix="2d_y_", use_default_range=True
 )
 
-do_animate = st.checkbox("Animate", value=True)
+do_animate = st.checkbox("Animate", value=False)
 
 osc_chan = osc_channel_selector(single=True)[0]
-st.write(f"Selected oscillation channel: {osc_chan}")
+osc_chan_pretty = COLUMN_TO_PRETTY.get(osc_chan, osc_chan)
 
 # --- Plot configuration -----------------------------------------------------
 
@@ -39,27 +40,26 @@ PLOT_CONFIG = dict(
     z_var=osc_chan,
     x_label=x_var,
     y_label=y_var,
-    z_label="Probability",
-    title=f"Oscillation probabilities vs {x_var}",
+    title=osc_chan_pretty,
 )
 
 # --- Plotting ---------------------------------------------------------------
 
 plotter = Plotter(pars=get_pars_from_session())
 
-# if do_animate:
-#     anim_var, anim_values = parameter_range_setter(
-#         "delta", key_prefix="1d_anim_", use_default_range=True
-#     )
-#     plotter.animate(
-#         plot_method="1d",
-#         animate_var=anim_var,
-#         animate_values=anim_values,
-#         x_values=x_values,
-#         **PLOT_CONFIG,
-#     )
-# else:
-#
-plotter.make_2d(x_values=x_values, y_values=y_values, **PLOT_CONFIG)
+if do_animate:
+    anim_var, anim_values = parameter_range_setter(
+        "E", key_prefix="2d_anim_", use_default_range=True, override={"num_steps": 10}
+    )
+    plotter.animate(
+        plot_method="2d",
+        animate_var=anim_var,
+        animate_values=anim_values,
+        x_values=x_values,
+        y_values=y_values,
+        **PLOT_CONFIG,
+    )
+else:
+    plotter.make_2d(x_values=x_values, y_values=y_values, **PLOT_CONFIG)
 
 plotter.show()

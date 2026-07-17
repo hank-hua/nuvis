@@ -39,7 +39,10 @@ def parameter_input(key: str, label: str, format: str = "%g", **kwargs):
 
 
 def _reset_range_to_defaults(
-    param_name_key: str, key_prefix: str, use_default_range: bool
+    param_name_key: str,
+    key_prefix: str,
+    use_default_range: bool,
+    override: dict[str, float] | None = None,
 ):
     """on_change callback — overwrites range widget state with defaults for the newly selected parameter."""
     selected = st.session_state[param_name_key]
@@ -54,6 +57,11 @@ def _reset_range_to_defaults(
     )
     st.session_state[f"{key_prefix}num_steps"] = var.num_steps
     st.session_state[f"{key_prefix}scale"] = var.scale
+    if override is not None:
+        for key in override:
+            st.session_state[f"{key_prefix}{key}"] = override.get(
+                key, st.session_state[f"{key_prefix}{key}"]
+            )
 
 
 def parameter_range_setter(
@@ -61,6 +69,7 @@ def parameter_range_setter(
     orientation: str = "horizontal",
     key_prefix: str = "",
     use_default_range: bool = False,
+    override: dict[str, float] | None = None,
 ) -> tuple[str, NDArray[np.float64]]:
     """
     A Streamlit component for generating an array of parameter values based on a range specified by the user.
@@ -79,6 +88,12 @@ def parameter_range_setter(
     var_steps = var.num_steps
     var_scale = var.scale
 
+    if override is not None:
+        var_min = override.get("min_value", var_min)
+        var_max = override.get("max_value", var_max)
+        var_steps = override.get("num_steps", var_steps)
+        var_scale = override.get("scale", var_scale)
+
     if orientation == "horizontal":
         cols = st.columns(5)
         with cols[0]:
@@ -88,7 +103,12 @@ def parameter_range_setter(
                 index=VARIABLE_LIST.index(default_var),
                 key=f"{key_prefix}param_name",
                 on_change=_reset_range_to_defaults,
-                args=(f"{key_prefix}param_name", key_prefix, use_default_range),
+                args=(
+                    f"{key_prefix}param_name",
+                    key_prefix,
+                    use_default_range,
+                    override,
+                ),
             )
         with cols[1]:
             min_value = st.number_input(
@@ -119,7 +139,7 @@ def parameter_range_setter(
             index=VARIABLE_LIST.index(default_var),
             key=f"{key_prefix}param_name",
             on_change=_reset_range_to_defaults,
-            args=(f"{key_prefix}param_name", key_prefix, use_default_range),
+            args=(f"{key_prefix}param_name", key_prefix, use_default_range, override),
         )
         min_value = st.number_input(
             "Min", value=var_min, format="%g", key=f"{key_prefix}min_value"

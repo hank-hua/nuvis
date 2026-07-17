@@ -193,7 +193,8 @@ class Plotter:
         y_values: Sequence[float] | None = None,
         y_var: str = "L",
         z_var: str = "mu_e",
-    ) -> list[go.Heatmap]:
+        draw_contours: bool = True,
+    ) -> list[go.Heatmap | go.Contour]:
         """
         Build frame data for a 2D probability heatmap.
 
@@ -225,18 +226,37 @@ class Plotter:
             z_var=z_var,
             matter=self.matter,
         )
-        return [
+        traces: list[go.Heatmap | go.Contour] = [
             go.Heatmap(
                 x=x_values,
                 y=y_values,
                 z=Z,
-                colorscale="Viridis",
+                colorscale="ice",
                 colorbar=dict(title=z_label),
                 hovertemplate=(
                     f"{x_var}: %{{x}}<br>{y_var}: %{{y}}<br>{z_label}: %{{z:.4f}}<extra></extra>"
                 ),
             )
         ]
+        if draw_contours:
+            traces.append(
+                go.Contour(
+                    x=x_values,
+                    y=y_values,
+                    z=Z,
+                    contours=dict(
+                        coloring="lines",
+                        showlabels=True,
+                        labelfont=dict(size=12),
+                    ),
+                    colorscale="greys",
+                    showscale=False,
+                    line_width=1,
+                    hoverinfo="skip",
+                    ncontours=5,
+                )
+            )
+        return traces
 
     # --- Public API ---------------------------------------------------------
 
@@ -248,7 +268,7 @@ class Plotter:
         x_label: str | None = None,
         y_label: str | None = None,
         title: str | None = None,
-        line_colors: llist[str] | None = None,
+        line_colors: list[str] | None = None,
         line_width: int = 2,
     ) -> go.Figure:
         """
