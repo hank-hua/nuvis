@@ -213,8 +213,8 @@ class Plotter:
 
         Returns
         -------
-        list[go.Heatmap]
-            Single-element list containing the heatmap trace.
+        list[go.Heatmap | go.Contour]
+            List containing the heatmap trace and optional contour trace.
         """
         z_label = COLUMN_TO_PRETTY.get(z_var, z_var)
         Z, _ = get_probs_2d(
@@ -254,6 +254,61 @@ class Plotter:
                     line_width=1,
                     hoverinfo="skip",
                     ncontours=5,
+                )
+            )
+        return traces
+
+    def _get_ellipse_frame_data(
+        self,
+        t_values: Sequence[float],
+        t_var: str,
+        x_var: str,
+        y_var: str,
+    ) -> list[go.Scatter]:
+        """
+        Build frame data for a bi-probability ellipse plot.
+
+        Parameters
+        ----------
+        t_values : Sequence[float]
+            Values for the animated parameter.
+        t_var : str
+            Name of the animated parameter.
+        x_var : str
+            Variable for the x-axis.
+        y_var : str
+            Variable for the y-axis.
+
+        Returns
+        -------
+        list[go.Scatter]
+            Single-element list containing the scatter trace.
+        """
+        traces: list[go.Scatter] = []
+        ellipse_NO = get_ellipse(
+            self.pars, t_var=t_var, t_values=t_values, x_var=x_var, y_var=y_var
+        )
+        ellipse_IO = get_ellipse(
+            self.pars.replace(dmsq31=-self.pars["dmsq31"]),
+            t_var=t_var,
+            t_values=t_values,
+            x_var=x_var,
+            y_var=y_var,
+        )
+        labels = ["NO", "IO"]
+        for i, ellipse in enumerate([ellipse_NO, ellipse_IO]):
+            traces.append(
+                go.Scatter(
+                    x=ellipse[:, 0],
+                    y=ellipse[:, 1],
+                    mode="lines",
+                    name=labels[i],
+                    line=dict(width=2, dash="solid" if i == 0 else "dash"),
+                    customdata=t_values,
+                    hovertemplate=(
+                        f"{x_var}: %{{x:.4f}}<br>{y_var}: %{{y:.4f}}"
+                        f"<br>{t_var}: %{{customdata:.4f}}"
+                    ),
                 )
             )
         return traces
@@ -359,6 +414,34 @@ class Plotter:
         )
         trace = self._get_2d_frame_data(x_values, x_var, y_values, y_var, z_var)
         self.fig = go.Figure(data=trace)
+        self.fig.update_layout(
+            title=title,
+            xaxis_title=x_label,
+            yaxis_title=y_label,
+        )
+        return self.fig
+
+    def make_biprob(
+        self,
+        t_values: Sequence[float],
+        t_var: str,
+        x_var: str,
+        y_var: str,
+        x_label: str | None = None,
+        y_label: str | None = None,
+        title: str | None = None,
+    ):
+        """Create a bi-probability plot (x_var vs y_var) for a range of t_values."""
+
+        x_label, y_label, title = self._resolve_labels(
+            "ellipse",
+            {"x_var": x_var, "y_var": y_var},
+            x_label,
+            y_label,
+            title,
+        )
+        traces = self._get_ellipse_frame_data(t_values, t_var, x_var, y_var)
+        self.fig = go.Figure(data=traces)
         self.fig.update_layout(
             title=title,
             xaxis_title=x_label,

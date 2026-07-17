@@ -164,25 +164,22 @@ def get_probs_2d(
 
 
 def get_ellipse(
-    pars,
-    t_var,
-    t_values,
-    x_var="mu_e",
-    y_var="mu_e",
-    x_anti=False,
-    y_anti=False,
-    matter=True,
+    pars: ParameterSet,
+    t_var: str,
+    t_values: np.ndarray,
+    x_var: str = "mu_e",
+    y_var: str = "anti_mu_e",
+    matter: bool = True,
 ):
     if x_var not in COLUMNS or y_var not in COLUMNS:
         raise ValueError("x_var and y_var must be one of the probability channels")
-    x_index = COLUMNS.index(x_var)
-    y_index = COLUMNS.index(y_var)
     ellipse = np.zeros((len(t_values), 2))
     if t_var == "L/E":
         t_values = pars["L"] / t_values
         t_var = "E"
     for i, t in enumerate(t_values):
-        pars_t = {**pars, t_var: t}
-        ellipse[i, 0] = calc_prob(pars_t, matter=matter, anti=x_anti)[x_index]
-        ellipse[i, 1] = calc_prob(pars_t, matter=matter, anti=y_anti)[y_index]
+        pars_t = pars.replace(**{t_var: t})
+        osc_res = calc_prob(pars_t, matter=matter)
+        ellipse[i, 0] = osc_res[x_var]
+        ellipse[i, 1] = osc_res[y_var]
     return ellipse
