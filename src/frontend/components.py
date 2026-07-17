@@ -38,6 +38,24 @@ def parameter_input(key: str, label: str, format: str = "%g", **kwargs):
         session_state[key] = new_value
 
 
+def _reset_range_to_defaults(
+    param_name_key: str, key_prefix: str, use_default_range: bool
+):
+    """on_change callback — overwrites range widget state with defaults for the newly selected parameter."""
+    selected = st.session_state[param_name_key]
+    if selected not in VARIABLE_SETTINGS:
+        return
+    var = VARIABLE_SETTINGS[selected]
+    st.session_state[f"{key_prefix}min_value"] = (
+        var.default_low if use_default_range else var.min_value
+    )
+    st.session_state[f"{key_prefix}max_value"] = (
+        var.default_high if use_default_range else var.max_value
+    )
+    st.session_state[f"{key_prefix}num_steps"] = var.num_steps
+    st.session_state[f"{key_prefix}scale"] = var.scale
+
+
 def parameter_range_setter(
     default_var: str,
     orientation: str = "horizontal",
@@ -69,6 +87,8 @@ def parameter_range_setter(
                 options=VARIABLE_LIST,
                 index=VARIABLE_LIST.index(default_var),
                 key=f"{key_prefix}param_name",
+                on_change=_reset_range_to_defaults,
+                args=(f"{key_prefix}param_name", key_prefix, use_default_range),
             )
         with cols[1]:
             min_value = st.number_input(
@@ -98,6 +118,8 @@ def parameter_range_setter(
             options=VARIABLE_LIST,
             index=VARIABLE_LIST.index(default_var),
             key=f"{key_prefix}param_name",
+            on_change=_reset_range_to_defaults,
+            args=(f"{key_prefix}param_name", key_prefix, use_default_range),
         )
         min_value = st.number_input(
             "Min", value=var_min, format="%g", key=f"{key_prefix}min_value"
