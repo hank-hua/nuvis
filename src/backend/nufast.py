@@ -40,9 +40,13 @@ class OscillationResult:
             raise ValueError(f"Unknown channels: {invalid}. Must be one of {COLUMNS}")
         return [COLUMNS.index(c) for c in channels]
 
-    def __getitem__(self, channels: str | list[str]) -> np.ndarray:
+    def __getitem__(self, channels: str | list[str]) -> np.ndarray | float:
         """Return probabilities for one or more channels."""
-        return self.probs[self._resolve(channels)]
+        if isinstance(channels, str):
+            idx = COLUMNS.index(channels)  # int index => scalar result
+            return self.probs[idx]
+        idxs = self._resolve(channels)
+        return self.probs[idxs]
 
 
 def calc_prob(
@@ -126,15 +130,14 @@ def get_probs_1d(
     return df
 
 
-def get_probs_mesh(
-    pars,
-    x_values,
-    y_values,
-    x_var="E",
-    y_var="L",
-    z_var="e_mu",
-    matter=True,
-    anti=False,
+def get_probs_2d(
+    pars: ParameterSet,
+    x_values: np.ndarray,
+    y_values: np.ndarray,
+    x_var: str = "E",
+    y_var: str = "L",
+    z_var: str = "e_mu",
+    matter: bool = True,
 ):
     x_var_calc = x_var
     x_values_calc = x_values
@@ -147,18 +150,15 @@ def get_probs_mesh(
         y_values_calc = pars["L"] / y_values
         y_var_calc = "E"
     if z_var not in COLUMNS:
-        raise ValueError("z_var must be one of the probability channels")
-    X, Y = np.meshgrid(x_values, y_values)
+        raise ValueError(f"z_var ({z_var}) must be one of the probability channels")
+    X, Y = np.meshgrid(x_values_calc, y_values_calc)
     Z = np.zeros_like(X)
-    z_index = COLUMNS.index(z_var)
     for idx in np.ndindex(X.shape):
         i, j = idx
-        params = {
-            **pars,
-            x_var_calc: x_values_calc[j],
-            y_var_calc: y_values_calc[i],
-        }
-        Z[i, j] = calc_prob(params, matter=matter, anti=anti)[z_index]
+        pars_ij = pars.replace(**{x_var_calc: X[i, j], y_var_calc: Y[i, j]})
+
+        osc_res = calc_prob(pars_ij, matter=matter)
+        Z[i, j] = osc_res[z_var]
 
     return Z, (X, Y)
 

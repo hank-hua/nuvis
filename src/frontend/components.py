@@ -150,7 +150,9 @@ def parameter_range_setter(
     return param_name, values
 
 
-def osc_channel_selector(default_channel: str = "mu_e") -> list[str]:
+def osc_channel_selector(
+    default_channel: str = "mu_e", single: bool = False
+) -> list[str]:
     """
     A Streamlit component for selecting the oscillation channel.
     """
@@ -164,12 +166,20 @@ def osc_channel_selector(default_channel: str = "mu_e") -> list[str]:
             f"Default channel '{default_channel}' is not in COLUMNS, COLUMNS_PRETTY."
         )
 
-    channels = st.multiselect(
-        "Select oscillation channel(s)",
-        options=COLUMNS_PRETTY,
-        default=[COLUMNS_PRETTY[default_index]],
-    )
+    if single:
+        channels = st.selectbox(
+            "Select oscillation channel",
+            options=COLUMNS_PRETTY,
+            index=default_index,
+        )
+        channels = [COLUMNS[COLUMNS_PRETTY.index(channels)]]
+    else:
+        channels = st.multiselect(
+            "Select oscillation channel(s)",
+            options=COLUMNS_PRETTY,
+            default=[COLUMNS_PRETTY[default_index]],
+        )
 
-    channels = [COLUMNS[COLUMNS_PRETTY.index(c)] for c in channels]
+        channels = [COLUMNS[COLUMNS_PRETTY.index(c)] for c in channels]
 
     return channels

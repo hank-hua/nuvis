@@ -50,4 +50,9 @@ if do_animate:
         x_values=x_values,
         **PLOT_CONFIG,
     )
+else:
+    plotter.make_1d(
+        x_values=x_values,
+        **PLOT_CONFIG,
+    )
 plotter.show()

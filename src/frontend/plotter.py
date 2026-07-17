@@ -8,7 +8,7 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from backend.defaults import COLUMN_TO_PRETTY
-from backend.nufast import get_probs_1d
+from backend.nufast import get_ellipse, get_probs_1d, get_probs_2d
 from backend.parameter import ParameterSet
 
 
@@ -131,7 +131,7 @@ class Plotter:
         """Dispatch map from plot method name to frame-data builder."""
         return {
             "1d": self._get_1d_frame_data,
-            # "2d": self._get_2d_frame_data,
+            "2d": self._get_2d_frame_data,
             # "ellipse": self._get_ellipse_frame_data,
         }
 
@@ -144,7 +144,6 @@ class Plotter:
         y_vars: list[str] = ["mu_mu"],
         line_colors: list[str] | None = None,
         line_width: int = 2,
-        **kwargs,
     ) -> list[go.Scatter]:
         """
         Build frame data for a 1D probability plot.
@@ -185,6 +184,58 @@ class Plotter:
                 line_width,
             )
             for i in range(len(y_vars))
+        ]
+
+    def _get_2d_frame_data(
+        self,
+        x_values: Sequence[float],
+        x_var: str = "E",
+        y_values: Sequence[float] | None = None,
+        y_var: str = "L",
+        z_var: str = "mu_e",
+    ) -> list[go.Heatmap]:
+        """
+        Build frame data for a 2D probability heatmap.
+
+        Parameters
+        ----------
+        x_values : Sequence[float]
+            Values for the x-axis.
+        x_var : str
+            Variable for the x-axis.
+        y_values : Sequence[float]
+            Values for the y-axis.
+        y_var : str
+            Variable for the y-axis.
+        z_var : str
+            Probability channel for the z-axis.
+
+        Returns
+        -------
+        list[go.Heatmap]
+            Single-element list containing the heatmap trace.
+        """
+        z_label = COLUMN_TO_PRETTY.get(z_var, z_var)
+        Z, _ = get_probs_2d(
+            self.pars,
+            x_values,
+            y_values,
+            x_var=x_var,
+            y_var=y_var,
+            z_var=z_var,
+            matter=self.matter,
+        )
+        return [
+            go.Heatmap(
+                x=x_values,
+                y=y_values,
+                z=Z,
+                colorscale="Viridis",
+                colorbar=dict(title=z_label),
+                hovertemplate=(
+                    f"{x_var}: %{{x}}<br>{y_var}: %{{y}}<br>{z_label}: %{{z:.4f}}<extra></extra>"
+                ),
+            )
         ]
 
     # --- Public API ---------------------------------------------------------
@@ -237,6 +288,56 @@ class Plotter:
         trace = self._get_1d_frame_data(
             x_values, x_var, y_vars, line_colors, line_width
         )
+        self.fig = go.Figure(data=trace)
+        self.fig.update_layout(
+            title=title,
+            xaxis_title=x_label,
+            yaxis_title=y_label,
+        )
+        return self.fig
+
+    def make_2d(
+        self,
+        x_values: Sequence[float],
+        y_values: Sequence[float],
+        x_var: str = "E",
+        y_var: str = "L",
+        z_var: str = "mu_e",
+        x_label: str | None = None,
+        y_label: str | None = None,
+        z_label: str | None = None,
+        title: str | None = None,
+    ) -> go.Figure:
+        """
+        Create a 2D probability heatmap.
+
+        Parameters
+        ----------
+        x_values : Sequence[float]
+            Values for the x-axis.
+        y_values : Sequence[float]
+            Values for the y-axis.
+        x_var : str
+            Variable for x-axis (e.g., 'E', 'L', 'L/E').
+        y_var : str
+            Variable for y-axis (e.g., 'E', 'L', 'L/E').
+        z_var : str
+            Probability channel for z-axis (e.g., 'mu_mu', 'e_mu').
+        x_label : str, optional
+            Label for x-axis.
+        y_label : str, optional
+            Label for y-axis.
+        title : str, optional
+            Title for the plot.
+        """
+        x_label, y_label, title = self._resolve_labels(
+            "2d",
+            {"x_var": x_var, "y_var": y_var, "z_var": z_var},
+            x_label,
+            y_label,
+            title,
+        )
+        trace = self._get_2d_frame_data(x_values, x_var, y_values, y_var, z_var)
         self.fig = go.Figure(data=trace)
         self.fig.update_layout(
             title=title,
