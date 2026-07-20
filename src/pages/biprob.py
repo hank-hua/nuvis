@@ -20,7 +20,10 @@ st.write("Bi-probability visualiser.")
 parameter_setter()
 
 t_var, t_values = parameter_range_setter(
-    "delta", key_prefix="biprob_val_", use_default_range=True
+    "delta",
+    key_prefix="biprob_val_",
+    use_default_range=True,
+    override={"num_steps": 20},
 )
 
 do_animate = st.checkbox("Animate", value=True)
@@ -50,13 +53,15 @@ PLOT_CONFIG = dict(
 plotter = Plotter(pars=get_pars_from_session())
 
 if do_animate:
+    freeze_axes = st.checkbox("Freeze axes", value=False)
     anim_var, anim_values = parameter_range_setter(
-        "E", key_prefix="1d_anim_", use_default_range=True
+        "E", key_prefix="1d_anim_", use_default_range=True, override={"num_steps": 20}
     )
     plotter.animate(
         plot_method="biprob",
         animate_var=anim_var,
         animate_values=anim_values,
+        freeze_axes=freeze_axes,
         **PLOT_CONFIG,
     )
 else:

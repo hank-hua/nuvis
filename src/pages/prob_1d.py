@@ -40,6 +40,7 @@ PLOT_CONFIG = dict(
 plotter = Plotter(pars=get_pars_from_session())
 
 if do_animate:
+    freeze_axes = st.checkbox("Freeze axes", value=False)
     anim_var, anim_values = parameter_range_setter(
         "delta", key_prefix="1d_anim_", use_default_range=True
     )
@@ -48,6 +49,7 @@ if do_animate:
         animate_var=anim_var,
         animate_values=anim_values,
         x_values=x_values,
+        freeze_axes=freeze_axes,
         **PLOT_CONFIG,
     )
 else:

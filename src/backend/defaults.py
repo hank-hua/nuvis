@@ -107,6 +107,7 @@ VARIABLE_SETTINGS = {
         default_low=0.1,
         default_high=10.0,
         num_steps=100,
+        scale="log",
     ),
     "L": VariableSetting(
         name="L",

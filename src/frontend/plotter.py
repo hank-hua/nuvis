@@ -132,7 +132,7 @@ class Plotter:
         return {
             "1d": self._get_1d_frame_data,
             "2d": self._get_2d_frame_data,
-            # "ellipse": self._get_ellipse_frame_data,
+            "biprob": self._get_ellipse_frame_data,
         }
 
     # --- Frame data builders ------------------------------------------------
@@ -313,6 +313,33 @@ class Plotter:
             )
         return traces
 
+    def _compute_frame_ranges(self, frame_data, pad_fraction: float = 0.05):
+        """Compute padded x/y ranges for a frame from its trace data."""
+        x_all = []
+        y_all = []
+
+        for trace in frame_data:
+            if getattr(trace, "x", None) is not None:
+                x_all.extend(trace.x)
+            if getattr(trace, "y", None) is not None:
+                y_all.extend(trace.y)
+
+        if not x_all or not y_all:
+            return None, None
+
+        x_min, x_max = min(x_all), max(x_all)
+        y_min, y_max = min(y_all), max(y_all)
+
+        x_pad = (x_max - x_min) * pad_fraction
+        y_pad = (y_max - y_min) * pad_fraction
+
+        if x_pad == 0:
+            x_pad = 1e-6
+        if y_pad == 0:
+            y_pad = 1e-6
+
+        return [x_min - x_pad, x_max + x_pad], [y_min - y_pad, y_max + y_pad]
+
     # --- Public API ---------------------------------------------------------
 
     def make_1d(
@@ -454,10 +481,10 @@ class Plotter:
         plot_method: str,
         animate_var: str,
         animate_values: Sequence[float],
-        x_values: Sequence[float],
         title: str | None = None,
         x_label: str | None = None,
         y_label: str | None = None,
+        freeze_axes: bool = True,
         **plot_kwargs,
     ) -> go.Figure:
         """
@@ -471,14 +498,15 @@ class Plotter:
             Parameter to animate over.
         animate_values : Sequence[float]
             Values to animate through.
-        x_values : Sequence[float]
-            Values for the x-axis of each frame.
         title : str, optional
             Title for the plot.
         x_label : str, optional
             Label for x-axis.
         y_label : str, optional
             Label for y-axis.
+        freeze_axes : bool, optional
+            If True, use the same x/y axis ranges for all frames.
+            If False, fit axes separately for each frame.
         **plot_kwargs
             Additional keyword arguments passed to the frame builder.
 
@@ -501,14 +529,56 @@ class Plotter:
 
         original_pars = self.pars
         frames = []
+        frame_ranges: list[tuple[list[float] | None, list[float] | None]] = []
+
         try:
             for val in animate_values:
                 self.pars = self.pars.replace(**{animate_var: val})
-                frame_data = builder(x_values=x_values, **plot_kwargs)
-                frames.append(go.Frame(data=frame_data, name=f"{val:.2f}"))
+                frame_data = builder(**plot_kwargs)
+                x_range, y_range = self._compute_frame_ranges(frame_data)
+                frame_ranges.append((x_range, y_range))
+                frames.append(
+                    go.Frame(
+                        data=frame_data,
+                        name=f"{val:.2f}",
+                    )
+                )
                 self.pars = original_pars  # reset each iteration
         finally:
-            self.pars = original_pars  # guaranteed restore on exception
+            self.pars = original_pars
+
+        if freeze_axes and frame_ranges:
+            x_mins = [xr[0] for xr, _ in frame_ranges if xr is not None]
+            x_maxs = [xr[1] for xr, _ in frame_ranges if xr is not None]
+            y_mins = [yr[0] for _, yr in frame_ranges if yr is not None]
+            y_maxs = [yr[1] for _, yr in frame_ranges if yr is not None]
+
+            global_x_range = [min(x_mins), max(x_maxs)] if x_mins and x_maxs else None
+            global_y_range = [min(y_mins), max(y_maxs)] if y_mins and y_maxs else None
+
+            frames = [
+                go.Frame(
+                    data=frame.data,
+                    name=frame.name,
+                    layout=go.Layout(
+                        xaxis=dict(range=global_x_range),
+                        yaxis=dict(range=global_y_range),
+                    ),
+                )
+                for frame in frames
+            ]
+        else:
+            frames = [
+                go.Frame(
+                    data=frame.data,
+                    name=frame.name,
+                    layout=go.Layout(
+                        xaxis=dict(range=x_range),
+                        yaxis=dict(range=y_range),
+                    ),
+                )
+                for frame, (x_range, y_range) in zip(frames, frame_ranges)
+            ]
 
         x_label, y_label, title = self._resolve_labels(
             plot_method, plot_kwargs, x_label, y_label, title
@@ -523,6 +593,13 @@ class Plotter:
             updatemenus=updatemenus,
             sliders=sliders,
         )
+
+        if frames and frames[0].layout:
+            self.fig.update_layout(
+                xaxis=frames[0].layout.xaxis,
+                yaxis=frames[0].layout.yaxis,
+            )
+
         return self.fig
 
     def show(self):
@@ -568,6 +645,7 @@ class Plotter:
                                     "redraw": True,
                                 },
                                 "fromcurrent": True,
+                                "mode": "immediate",
                             },
                         ],
                     ),
@@ -587,6 +665,7 @@ class Plotter:
                 y=-0.15,
             )
         ]
+
         sliders = [
             dict(
                 steps=[
@@ -596,7 +675,7 @@ class Plotter:
                             [f.name],
                             {
                                 "frame": {
-                                    "duration": self.frame_duration,
+                                    "duration": 0,
                                     "redraw": True,
                                 },
                                 "mode": "immediate",
@@ -607,8 +686,7 @@ class Plotter:
                     for f in frames
                 ],
                 transition={
-                    "duration": self.frame_duration,
-                    "easing": "cubic-in-out",
+                    "duration": 0,
                 },
                 x=0.1,
                 y=-0.15,
