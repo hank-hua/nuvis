@@ -25,9 +25,9 @@ class Plotter:
         anti: bool = False,
         frame_duration: int = DEFAULT_FRAME_DURATION,
     ):
-        self.pars = pars
-        self.matter = matter
-        self.frame_duration = frame_duration
+        self.pars: ParameterSet = pars
+        self.matter: bool = matter
+        self.frame_duration: int = frame_duration
         self.fig: go.Figure | None = None
 
     # --- Private helpers ----------------------------------------------------
@@ -78,7 +78,7 @@ class Plotter:
             x_label = self._resolve_label(x_var, x_label)
             y_label = self._resolve_label(y_var, y_label)
             title = title or self._resolve_label(z_var, None)
-        elif plot_method == "ellipse":
+        elif plot_method == "biprob":
             x_var = plot_kwargs.get("x_var", "mu_e")
             y_var = plot_kwargs.get("y_var", "mu_e")
             x_label = self._resolve_label(x_var, x_label)
@@ -136,6 +136,18 @@ class Plotter:
             "biprob": self._get_ellipse_frame_data,
         }
 
+    def _replace_parameter(
+        self, pars: ParameterSet, variable: str, value: float
+    ) -> ParameterSet:
+        """Return parameters with one plotting variable replaced."""
+        if variable == "L/E":
+            if value <= 0:
+                raise ValueError("L/E must be positive when used as a parameter sweep")
+            return pars.replace(E=pars["L"] / value)
+        if variable not in pars:
+            raise ValueError(f"Unknown parameter: {variable!r}")
+        return pars.replace(**{variable: value})
+
     # --- Frame data builders ------------------------------------------------
 
     def _get_1d_frame_data(
@@ -145,6 +157,7 @@ class Plotter:
         y_vars: list[str] = ["mu_mu"],
         line_colors: list[str] | None = None,
         line_width: int = 2,
+        pars: ParameterSet | None = None,
     ) -> list[go.Scatter]:
         """
         Build frame data for a 1D probability plot.
@@ -167,8 +180,9 @@ class Plotter:
         list[go.Scatter]
             Single-element list containing the scatter trace.
         """
+        pars = self.pars if pars is None else pars
         df = get_probs_1d(
-            self.pars,
+            pars,
             x_values,
             x_var=x_var,
             y_vars=y_vars,
@@ -194,7 +208,10 @@ class Plotter:
         y_values: Sequence[float] | None = None,
         y_var: str = "L",
         z_var: str = "mu_e",
+        draw_heatmap: bool = True,
         draw_contours: bool = True,
+        contour_levels: tuple[float, float, float] | None = None,
+        pars: ParameterSet | None = None,
     ) -> list[go.Heatmap | go.Contour]:
         """
         Build frame data for a 2D probability heatmap.
@@ -217,9 +234,10 @@ class Plotter:
         list[go.Heatmap | go.Contour]
             List containing the heatmap trace and optional contour trace.
         """
+        pars = self.pars if pars is None else pars
         z_label = COLUMN_TO_PRETTY.get(z_var, z_var)
         Z, _ = get_probs_2d(
-            self.pars,
+            pars,
             x_values,
             y_values,
             x_var=x_var,
@@ -227,34 +245,45 @@ class Plotter:
             z_var=z_var,
             matter=self.matter,
         )
-        traces: list[go.Heatmap | go.Contour] = [
-            go.Heatmap(
-                x=x_values,
-                y=y_values,
-                z=Z,
-                colorscale="ice",
-                colorbar=dict(title=z_label),
-                hovertemplate=(
-                    f"{x_var}: %{{x}}<br>{y_var}: %{{y}}<br>{z_label}: %{{z:.4f}}<extra></extra>"
-                ),
+        traces: list[go.Heatmap | go.Contour] = []
+        if draw_heatmap:
+            traces.append(
+                go.Heatmap(
+                    x=x_values,
+                    y=y_values,
+                    z=Z,
+                    colorscale="ice",
+                    colorbar=dict(title=z_label),
+                    hovertemplate=(
+                        f"{x_var}: %{{x}}<br>{y_var}: %{{y}}<br>{z_label}: %{{z:.4f}}<extra></extra>"
+                    ),
+                )
             )
-        ]
         if draw_contours:
+            contour_config: dict[str, object] = dict(
+                coloring="lines",
+                showlabels=True,
+                labelfont=dict(size=12),
+            )
+            contour_options: dict[str, object] = {}
+            if contour_levels is None:
+                contour_options["ncontours"] = 5
+            else:
+                start, end, size = contour_levels
+                contour_config.update(start=start, end=end, size=size)
+                contour_options["autocontour"] = False
+
             traces.append(
                 go.Contour(
                     x=x_values,
                     y=y_values,
                     z=Z,
-                    contours=dict(
-                        coloring="lines",
-                        showlabels=True,
-                        labelfont=dict(size=12),
-                    ),
+                    contours=contour_config,
                     colorscale="greys",
                     showscale=False,
                     line_width=1,
                     hoverinfo="skip",
-                    ncontours=5,
+                    **contour_options,
                 )
             )
         return traces
@@ -265,6 +294,8 @@ class Plotter:
         t_var: str,
         x_var: str,
         y_var: str,
+        show_dcp_markers: bool = True,
+        pars: ParameterSet | None = None,
     ) -> list[go.Scatter]:
         """
         Build frame data for a bi-probability ellipse plot.
@@ -285,16 +316,23 @@ class Plotter:
         list[go.Scatter]
             Single-element list containing the scatter trace.
         """
+        pars = self.pars if pars is None else pars
         traces: list[go.Scatter] = []
         ellipse_NO = get_ellipse(
-            self.pars, t_var=t_var, t_values=t_values, x_var=x_var, y_var=y_var
-        )
-        ellipse_IO = get_ellipse(
-            self.pars.replace(dmsq31=-self.pars["dmsq31"]),
+            pars,
             t_var=t_var,
             t_values=t_values,
             x_var=x_var,
             y_var=y_var,
+            matter=self.matter,
+        )
+        ellipse_IO = get_ellipse(
+            pars.replace(dmsq31=-pars["dmsq31"]),
+            t_var=t_var,
+            t_values=t_values,
+            x_var=x_var,
+            y_var=y_var,
+            matter=self.matter,
         )
         labels = ["NO", "IO"]
         for i, ellipse in enumerate([ellipse_NO, ellipse_IO]):
@@ -312,28 +350,29 @@ class Plotter:
                     ),
                 )
             )
-        dcp_list = [-np.pi / 2, 0, np.pi / 2, np.pi]
-        symbols_list = ["◕", "○", "◔", "◑"]
-        sizes_list = [12, 18, 12, 12]
-        for dcp in dcp_list:
-            no_pars = self.pars.replace(delta=dcp)
-            io_pars = self.pars.replace(delta=dcp, dmsq31=-self.pars["dmsq31"])
-            no_oscres = calc_prob(no_pars, matter=self.matter)
-            io_oscres = calc_prob(io_pars, matter=self.matter)
-            traces.append(
-                go.Scatter(
-                    x=[no_oscres[x_var], io_oscres[x_var]],
-                    y=[no_oscres[y_var], io_oscres[y_var]],
-                    mode="text",
-                    # name=f"{symbols_list[dcp_list.index(dcp)]}: {dcp:.2f}",
-                    text=[symbols_list[dcp_list.index(dcp)]] * 2,
-                    textfont=dict(size=sizes_list[dcp_list.index(dcp)]),
-                    hovertemplate=(
-                        f"{x_var}: %{{x:.4f}}<br>{y_var}: %{{y:.4f}}<br>δCP: {dcp:.4f}<extra></extra>"
-                    ),
-                    showlegend=False,
+        if show_dcp_markers:
+            dcp_list = [-np.pi / 2, 0, np.pi / 2, np.pi]
+            symbols_list = ["◕", "○", "◔", "◑"]
+            sizes_list = [12, 18, 12, 12]
+            for dcp in dcp_list:
+                no_pars = pars.replace(delta=dcp)
+                io_pars = pars.replace(delta=dcp, dmsq31=-pars["dmsq31"])
+                no_oscres = calc_prob(no_pars, matter=self.matter)
+                io_oscres = calc_prob(io_pars, matter=self.matter)
+                traces.append(
+                    go.Scatter(
+                        x=[no_oscres[x_var], io_oscres[x_var]],
+                        y=[no_oscres[y_var], io_oscres[y_var]],
+                        mode="text",
+                        text=[symbols_list[dcp_list.index(dcp)]] * 2,
+                        textfont=dict(size=sizes_list[dcp_list.index(dcp)]),
+                        hovertemplate=(
+                            f"{x_var}: %{{x:.4f}}<br>{y_var}: %{{y:.4f}}"
+                            f"<br>δCP: {dcp:.4f}<extra></extra>"
+                        ),
+                        showlegend=False,
+                    )
                 )
-            )
         return traces
 
     def _compute_frame_ranges(self, frame_data, pad_fraction: float = 0.05):
@@ -343,9 +382,17 @@ class Plotter:
 
         for trace in frame_data:
             if getattr(trace, "x", None) is not None:
-                x_all.extend(trace.x)
+                x_all.extend(
+                    float(value)
+                    for value in trace.x
+                    if value is not None and np.isfinite(value)
+                )
             if getattr(trace, "y", None) is not None:
-                y_all.extend(trace.y)
+                y_all.extend(
+                    float(value)
+                    for value in trace.y
+                    if value is not None and np.isfinite(value)
+                )
 
         if not x_all or not y_all:
             return None, None
@@ -405,7 +452,7 @@ class Plotter:
         """
         x_label, y_label, title = self._resolve_labels(
             "1d",
-            {"x_var": x_var, "y_var": y_vars},
+            {"x_var": x_var, "y_var": "Probability"},
             x_label,
             y_label,
             title,
