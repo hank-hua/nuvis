@@ -4,11 +4,12 @@ from __future__ import annotations
 
 from typing import Callable, Sequence
 
+import numpy as np
 import plotly.graph_objects as go
 import streamlit as st
 
 from backend.defaults import COLUMN_TO_PRETTY
-from backend.nufast import get_ellipse, get_probs_1d, get_probs_2d
+from backend.nufast import calc_prob, get_ellipse, get_probs_1d, get_probs_2d
 from backend.parameter import ParameterSet
 
 
@@ -309,6 +310,28 @@ class Plotter:
                         f"{x_var}: %{{x:.4f}}<br>{y_var}: %{{y:.4f}}"
                         f"<br>{t_var}: %{{customdata:.4f}}"
                     ),
+                )
+            )
+        dcp_list = [-np.pi / 2, 0, np.pi / 2, np.pi]
+        symbols_list = ["◕", "○", "◔", "◑"]
+        sizes_list = [12, 18, 12, 12]
+        for dcp in dcp_list:
+            no_pars = self.pars.replace(delta=dcp)
+            io_pars = self.pars.replace(delta=dcp, dmsq31=-self.pars["dmsq31"])
+            no_oscres = calc_prob(no_pars, matter=self.matter)
+            io_oscres = calc_prob(io_pars, matter=self.matter)
+            traces.append(
+                go.Scatter(
+                    x=[no_oscres[x_var], io_oscres[x_var]],
+                    y=[no_oscres[y_var], io_oscres[y_var]],
+                    mode="text",
+                    # name=f"{symbols_list[dcp_list.index(dcp)]}: {dcp:.2f}",
+                    text=[symbols_list[dcp_list.index(dcp)]] * 2,
+                    textfont=dict(size=sizes_list[dcp_list.index(dcp)]),
+                    hovertemplate=(
+                        f"{x_var}: %{{x:.4f}}<br>{y_var}: %{{y:.4f}}<br>δCP: {dcp:.4f}<extra></extra>"
+                    ),
+                    showlegend=False,
                 )
             )
         return traces
