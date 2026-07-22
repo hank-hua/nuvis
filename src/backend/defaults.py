@@ -129,7 +129,7 @@ VARIABLE_SETTINGS = {
     ),
 }
 
-VARIABLE_LIST = list(VARIABLE_SETTINGS.keys())
+VARIABLES = list(VARIABLE_SETTINGS.keys())
 
 N_NEWTON = 5
 
@@ -195,3 +195,17 @@ COLUMNS_PRETTY = [
 ]
 COLUMN_TO_PRETTY = dict(zip(COLUMNS, COLUMNS_PRETTY))
 PRETTY_TO_COLUMN = dict(zip(COLUMNS_PRETTY, COLUMNS))
+VARIABLE_TO_PRETTY = {
+    "s12sq": "sin²θ₁₂",
+    "s13sq": "sin²θ₁₃",
+    "s23sq": "sin²θ₂₃",
+    "delta": "δ_CP",
+    "dmsq21": "Δm²₂₁",
+    "dmsq31": "Δm²₃₁",
+    "rho": "ρ",
+    "ye": "Y_e",
+    "E": "E",
+    "L": "L",
+    "L/E": "L/E",
+}
+VARIABLES_PRETTY = [VARIABLE_TO_PRETTY[v] for v in VARIABLES]

@@ -18,27 +18,39 @@ st.write("1D probability visualiser.")
 
 parameter_setter()
 
-x_var, x_values = parameter_range_setter("E", key_prefix="1d_x_")
-
-col1, col2 = st.columns(2)
+col1, col2 = st.columns([1, 3])
 with col1:
-    do_animate = st.checkbox("Animate", value=True)
-with col2:
-    do_overlay = st.checkbox("Overlay", value=False)
-
-osc_chans = osc_channel_selector()
-
-overlay_var = overlay_values = None
-if do_overlay:
-    overlay_var, overlay_values = parameter_range_setter(
-        "s23sq",
-        key_prefix="1d_overlay_",
+    osc_chans = osc_channel_selector()
+    x_var, x_values = parameter_range_setter(
+        "E",
+        key_prefix="1d_x_",
+        expander_label="X-axis",
+        expanded=True,
+        orientation="vertical",
         use_default_range=True,
-        override={"num_steps": 5},
     )
-    if overlay_var == x_var:
-        st.error("Overlay and x-axis parameters must be different.")
-        st.stop()
+
+    with st.popover(
+        "Animation settings",
+    ):
+        do_animate = st.checkbox("Animate", value=True)
+        freeze_axes = st.checkbox("Freeze axes", value=False)
+        anim_var, anim_values = parameter_range_setter(
+            "delta",
+            key_prefix="1d_anim_",
+            use_default_range=True,
+        )
+
+    with st.popover(
+        "Overlay settings",
+    ):
+        do_overlay = st.checkbox("Overlay", value=False)
+        overlay_var, overlay_values = parameter_range_setter(
+            "s23sq",
+            key_prefix="1d_overlay_",
+            use_default_range=True,
+            override={"num_steps": 5},
+        )
 
 # --- Plot configuration -----------------------------------------------------
 
@@ -46,12 +58,9 @@ PLOT_CONFIG = dict(
     x_var=x_var,
     x_values=x_values,
     y_vars=osc_chans,
-    x_label=x_var,
-    y_label="Probability",
-    title=f"Oscillation probabilities vs {x_var}",
     line_width=2,
-    overlay_var=overlay_var,
-    overlay_values=overlay_values,
+    overlay_var=overlay_var if do_overlay else None,
+    overlay_values=overlay_values if do_overlay else None,
 )
 
 # --- Plotting ---------------------------------------------------------------
@@ -59,10 +68,6 @@ PLOT_CONFIG = dict(
 plotter = Plotter(pars=get_pars_from_session())
 
 if do_animate:
-    freeze_axes = st.checkbox("Freeze axes", value=False)
-    anim_var, anim_values = parameter_range_setter(
-        "delta", key_prefix="1d_anim_", use_default_range=True
-    )
     plotter.animate(
         plot_method="1d",
         animate_var=anim_var,
@@ -74,4 +79,5 @@ else:
     plotter.make_1d(
         **PLOT_CONFIG,
     )
-plotter.show()
+with col2:
+    plotter.show()

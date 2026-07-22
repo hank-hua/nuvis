@@ -9,7 +9,7 @@ import plotly.graph_objects as go
 import streamlit as st
 from plotly.colors import sample_colorscale
 
-from backend.defaults import COLUMN_TO_PRETTY
+from backend.defaults import COLUMN_TO_PRETTY, VARIABLE_TO_PRETTY
 from backend.nufast import calc_prob, get_ellipse, get_probs_1d, get_probs_2d
 from backend.parameter import ParameterSet
 
@@ -37,9 +37,14 @@ class Plotter:
 
     # --- Private helpers ----------------------------------------------------
 
-    def _resolve_label(self, fallback: str, override: str | None) -> str:
-        """Return override if provided, otherwise return fallback."""
-        return override if override is not None else fallback
+    def _resolve_label(self, var_name: str, var_label: str | None) -> str:
+        if var_label:
+            return var_label
+        if var_name in COLUMN_TO_PRETTY:
+            return COLUMN_TO_PRETTY[var_name]
+        if var_name in VARIABLE_TO_PRETTY:
+            return VARIABLE_TO_PRETTY[var_name]
+        return var_name
 
     def _resolve_labels(
         self,
@@ -71,21 +76,19 @@ class Plotter:
             Resolved (x_label, y_label, title).
         """
         if plot_method == "1d":
-            x_var = plot_kwargs.get("x_var", "E")
-            y_var = plot_kwargs.get("y_var", "Probability")
+            x_var = plot_kwargs["x_var"]
             x_label = self._resolve_label(x_var, x_label)
-            y_label = self._resolve_label(y_var, y_label)
-            title = title or y_label
+            y_label = "Probability"
+            title = title or f"Oscillation probabilities vs {x_label}"
         elif plot_method == "2d":
-            x_var = plot_kwargs.get("x_var", "E")
-            y_var = plot_kwargs.get("y_var", "L")
-            z_var = plot_kwargs.get("z_var", "Probability")
+            x_var = plot_kwargs["x_var"]
+            y_var = plot_kwargs["y_var"]
             x_label = self._resolve_label(x_var, x_label)
             y_label = self._resolve_label(y_var, y_label)
-            title = title or self._resolve_label(z_var, None)
+            title = title or "Probability"
         elif plot_method == "biprob":
-            x_var = plot_kwargs.get("x_var", "mu_e")
-            y_var = plot_kwargs.get("y_var", "mu_e")
+            x_var = plot_kwargs["x_var"]
+            y_var = plot_kwargs["y_var"]
             x_label = self._resolve_label(x_var, x_label)
             y_label = self._resolve_label(y_var, y_label)
             title = title or f"{x_label} vs {y_label}"
@@ -209,7 +212,7 @@ class Plotter:
                 pars=self._replace_parameter(pars, overlay_var, value),
                 **kwargs,
             )
-            label = f"{overlay_var}={value:.4g}"
+            label = f"{self._resolve_label(overlay_var, None)}={value:.4g}"
 
             for trace_index, trace in enumerate(traces):
                 if plot_method == "2d":
@@ -435,6 +438,7 @@ class Plotter:
             y_var=y_var,
             matter=self.matter,
         )
+        t_label = self._resolve_label(t_var, None)
         labels = ["NO", "IO"]
         for i, ellipse in enumerate([ellipse_NO, ellipse_IO]):
             traces.append(
@@ -447,7 +451,7 @@ class Plotter:
                     customdata=t_values,
                     hovertemplate=(
                         f"{x_var}: %{{x:.4f}}<br>{y_var}: %{{y:.4f}}"
-                        f"<br>{t_var}: %{{customdata:.4f}}"
+                        f"<br>{t_label}: %{{customdata:.4f}}"
                     ),
                 )
             )
@@ -827,10 +831,8 @@ class Plotter:
         )
 
         if frames and frames[0].layout:
-            self.fig.update_layout(
-                xaxis=frames[0].layout.xaxis,
-                yaxis=frames[0].layout.yaxis,
-            )
+            self.fig.update_xaxes(range=frames[0].layout.xaxis.range)
+            self.fig.update_yaxes(range=frames[0].layout.yaxis.range)
 
         return self.fig
 
@@ -927,7 +929,7 @@ class Plotter:
                 y=-0.15,
                 currentvalue=dict(
                     font=dict(size=12),
-                    prefix=f"{animate_var}: ",
+                    prefix=f"{self._resolve_label(animate_var, None)}: ",
                     visible=True,
                     xanchor="center",
                 ),
