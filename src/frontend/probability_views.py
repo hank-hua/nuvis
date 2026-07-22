@@ -31,6 +31,7 @@ def render_1d() -> None:
                 "delta",
                 key_prefix="1d_anim_",
                 use_default_range=True,
+                override={"num_steps": 50},
             )
 
         with st.popover("Overlay settings"):

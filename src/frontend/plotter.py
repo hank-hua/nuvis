@@ -17,7 +17,7 @@ from backend.parameter import ParameterSet
 class Plotter:
     """Builds and displays Plotly figures for neutrino oscillation probabilities."""
 
-    DEFAULT_FRAME_DURATION: int = 100  # milliseconds
+    DEFAULT_TOTAL_ANIMATION_DURATION: int = 5_000  # milliseconds
     DEFAULT_LINE_WIDTH: int = 2
     DEFAULT_HEATMAP_COLORSCALE: str = "ice"
     DEFAULT_CONTOUR_COLORSCALE: str = "greys"
@@ -722,7 +722,7 @@ class Plotter:
         overlay_var: str | None = None,
         overlay_values: Sequence[float] | None = None,
         overlay_colorscale: str = DEFAULT_OVERLAY_COLORSCALE,
-        frame_duration: int = DEFAULT_FRAME_DURATION,
+        total_duration: int = DEFAULT_TOTAL_ANIMATION_DURATION,
         **plot_kwargs,
     ) -> go.Figure:
         """
@@ -745,6 +745,9 @@ class Plotter:
         freeze_axes : bool, optional
             If True, use the same x/y axis ranges for all frames.
             If False, fit axes separately for each frame.
+        total_duration : int, optional
+            Total playback duration in milliseconds. It is divided equally
+            across all animation frames.
         **plot_kwargs
             Additional keyword arguments passed to the frame builder.
 
@@ -760,6 +763,12 @@ class Plotter:
         """
         if overlay_var == animate_var:
             raise ValueError("Animation and overlay parameters must be different")
+        if total_duration <= 0:
+            raise ValueError("total_duration must be positive")
+
+        if len(animate_values) == 0:
+            raise ValueError("animate_values cannot be empty")
+        frame_duration = max(10, round(total_duration / len(animate_values)))
 
         frames = []
         frame_ranges: list[tuple[list[float] | None, list[float] | None]] = []
@@ -851,7 +860,7 @@ class Plotter:
         self,
         frames: list[go.Frame],
         animate_var: str,
-        frame_duration: int = DEFAULT_FRAME_DURATION,
+        frame_duration: int,
     ) -> tuple[list, list]:
         """
         Build Plotly updatemenus and sliders for animation controls.
@@ -872,6 +881,7 @@ class Plotter:
             dict(
                 type="buttons",
                 direction="left",
+                showactive=False,
                 buttons=[
                     dict(
                         label="Play",
@@ -885,6 +895,7 @@ class Plotter:
                                 },
                                 "fromcurrent": True,
                                 "mode": "immediate",
+                                "transition": {"duration": 0},
                             },
                         ],
                     ),
@@ -894,14 +905,16 @@ class Plotter:
                         args=[
                             [None],
                             {
-                                "frame": {"duration": 0, "redraw": False},
+                                "frame": {"duration": 0, "redraw": True},
                                 "mode": "immediate",
                             },
                         ],
                     ),
                 ],
                 x=0,
-                y=-0.15,
+                xanchor="left",
+                y=-0.4,
+                yanchor="bottom",
             )
         ]
 
@@ -927,15 +940,19 @@ class Plotter:
                 transition={
                     "duration": 0,
                 },
-                x=0.1,
-                y=-0.15,
+                x=0.3,
+                xanchor="left",
+                y=-0.5,
+                yanchor="bottom",
+                pad=dict(t=0, b=0),
                 currentvalue=dict(
                     font=dict(size=12),
                     prefix=f"{self._resolve_label(animate_var, None)}: ",
                     visible=True,
-                    xanchor="center",
+                    xanchor="left",
+                    offset=0,
                 ),
-                len=0.9,
+                len=0.7,
             )
         ]
         return updatemenus, sliders
