@@ -26,7 +26,11 @@ t_var, t_values = parameter_range_setter(
     override={"num_steps": 20},
 )
 
-do_animate = st.checkbox("Animate", value=True)
+col1, col2 = st.columns(2)
+with col1:
+    do_animate = st.checkbox("Animate", value=True)
+with col2:
+    do_overlay = st.checkbox("Overlay", value=False)
 
 col1, col2 = st.columns(2)
 with col1:
@@ -35,6 +39,21 @@ with col1:
 with col2:
     y_chan = osc_channel_selector(default_channel="anti_mu_e", single=True)[0]
     y_chan_pretty = COLUMN_TO_PRETTY.get(y_chan, y_chan)
+
+overlay_var = overlay_values = None
+if do_overlay:
+    overlay_var, overlay_values = parameter_range_setter(
+        "s23sq",
+        key_prefix="biprob_overlay_",
+        use_default_range=True,
+        override={"num_steps": 5},
+    )
+    if overlay_var == t_var:
+        st.error("Overlay and ellipse parameters must be different.")
+        st.stop()
+    if overlay_var == "dmsq31":
+        st.error("dmsq31 is already represented by the NO/IO line style.")
+        st.stop()
 
 # --- Plot configuration -----------------------------------------------------
 
@@ -46,6 +65,8 @@ PLOT_CONFIG = dict(
     x_label=x_chan_pretty,
     y_label=y_chan_pretty,
     title=f"Bi-probability plot: {x_chan_pretty} vs {y_chan_pretty}",
+    overlay_var=overlay_var,
+    overlay_values=overlay_values,
 )
 
 # --- Plotting ---------------------------------------------------------------

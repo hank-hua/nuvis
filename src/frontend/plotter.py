@@ -7,6 +7,7 @@ from typing import Callable, Sequence
 import numpy as np
 import plotly.graph_objects as go
 import streamlit as st
+from plotly.colors import sample_colorscale
 
 from backend.defaults import COLUMN_TO_PRETTY
 from backend.nufast import calc_prob, get_ellipse, get_probs_1d, get_probs_2d
@@ -16,18 +17,22 @@ from backend.parameter import ParameterSet
 class Plotter:
     """Builds and displays Plotly figures for neutrino oscillation probabilities."""
 
-    DEFAULT_FRAME_DURATION = 100  # milliseconds
+    DEFAULT_FRAME_DURATION: int = 100  # milliseconds
+    DEFAULT_LINE_WIDTH: int = 2
+    DEFAULT_HEATMAP_COLORSCALE: str = "ice"
+    DEFAULT_CONTOUR_COLORSCALE: str = "greys"
+    DEFAULT_CONTOUR_COUNT: int = 5
+    DEFAULT_CONTOUR_LINE_WIDTH: int = 1
+    DEFAULT_OVERLAY_COLORSCALE: str = "Oryel"
 
     def __init__(
         self,
         pars: ParameterSet,
         matter: bool = True,
         anti: bool = False,
-        frame_duration: int = DEFAULT_FRAME_DURATION,
     ):
         self.pars: ParameterSet = pars
         self.matter: bool = matter
-        self.frame_duration: int = frame_duration
         self.fig: go.Figure | None = None
 
     # --- Private helpers ----------------------------------------------------
@@ -148,6 +153,98 @@ class Plotter:
             raise ValueError(f"Unknown parameter: {variable!r}")
         return pars.replace(**{variable: value})
 
+    def _build_traces(
+        self,
+        plot_method: str,
+        plot_kwargs: dict,
+        pars: ParameterSet,
+        overlay_var: str | None = None,
+        overlay_values: Sequence[float] | None = None,
+        overlay_colorscale: str = DEFAULT_OVERLAY_COLORSCALE,
+    ) -> list:
+        """Build traces, optionally repeating them for an overlay parameter."""
+        builder = self._frame_builders.get(plot_method)
+        if builder is None:
+            raise ValueError(
+                f"Unknown plot method: {plot_method!r}. "
+                f"Choose from: {list(self._frame_builders)}"
+            )
+
+        if overlay_var is None and overlay_values is None:
+            return builder(pars=pars, **plot_kwargs)
+        if overlay_var is None or overlay_values is None:
+            raise ValueError("overlay_var and overlay_values must be provided together")
+
+        values = list(overlay_values)
+        if not values:
+            raise ValueError("overlay_values cannot be empty")
+
+        if plot_method == "1d":
+            swept_vars = {plot_kwargs["x_var"]}
+        elif plot_method == "2d":
+            swept_vars = {
+                plot_kwargs["x_var"],
+                plot_kwargs["y_var"],
+            }
+        else:
+            swept_vars = {plot_kwargs["t_var"]}
+        if overlay_var in swept_vars:
+            raise ValueError(f"{overlay_var!r} is already swept by the plot")
+        if plot_method == "biprob" and overlay_var == "dmsq31":
+            raise ValueError("dmsq31 is already represented by the NO/IO line style")
+
+        positions = (
+            [0.5] if len(values) == 1 else np.linspace(0, 1, len(values)).tolist()
+        )
+        colors = sample_colorscale(overlay_colorscale, positions)
+        kwargs = dict(plot_kwargs)
+        if plot_method == "2d":
+            kwargs.update(draw_heatmap=False, draw_contours=True)
+        elif plot_method == "biprob":
+            kwargs["show_dcp_markers"] = False
+
+        frame_data = []
+        for value, color in zip(values, colors):
+            traces = builder(
+                pars=self._replace_parameter(pars, overlay_var, value),
+                **kwargs,
+            )
+            label = f"{overlay_var}={value:.4g}"
+
+            for trace_index, trace in enumerate(traces):
+                if plot_method == "2d":
+                    trace.update(
+                        colorscale=[[0, color], [1, color]],
+                        showlegend=True,
+                        name=label,
+                        hoverinfo="all",
+                        hovertemplate=(
+                            "x: %{x}<br>y: %{y}<br>Probability: %{z:.4f}"
+                            f"<br>{label}<extra></extra>"
+                        ),
+                    )
+                else:
+                    trace.update(
+                        line_color=color,
+                        line_dash=(
+                            ["solid", "dash", "dot", "dashdot"][trace_index % 4]
+                            if plot_method == "1d"
+                            else trace.line.dash
+                        ),
+                        name=f"{trace.name}, {label}",
+                    )
+                    hover = trace.hovertemplate or ""
+                    detail = f"<br>{label}"
+                    trace.hovertemplate = (
+                        hover.replace("<extra>", f"{detail}<extra>", 1)
+                        if "<extra>" in hover
+                        else f"{hover}{detail}<extra></extra>"
+                    )
+
+            frame_data.extend(traces)
+
+        return frame_data
+
     # --- Frame data builders ------------------------------------------------
 
     def _get_1d_frame_data(
@@ -156,7 +253,7 @@ class Plotter:
         x_var: str = "E",
         y_vars: list[str] = ["mu_mu"],
         line_colors: list[str] | None = None,
-        line_width: int = 2,
+        line_width: int = DEFAULT_LINE_WIDTH,
         pars: ParameterSet | None = None,
     ) -> list[go.Scatter]:
         """
@@ -210,7 +307,11 @@ class Plotter:
         z_var: str = "mu_e",
         draw_heatmap: bool = True,
         draw_contours: bool = True,
-        contour_levels: tuple[float, float, float] | None = None,
+        heatmap_colorscale: str = DEFAULT_HEATMAP_COLORSCALE,
+        contour_colorscale: str = DEFAULT_CONTOUR_COLORSCALE,
+        contour_range: tuple[float, float, float] | None = None,
+        ncontours: int = DEFAULT_CONTOUR_COUNT,
+        contour_line_width: int = DEFAULT_CONTOUR_LINE_WIDTH,
         pars: ParameterSet | None = None,
     ) -> list[go.Heatmap | go.Contour]:
         """
@@ -252,7 +353,7 @@ class Plotter:
                     x=x_values,
                     y=y_values,
                     z=Z,
-                    colorscale="ice",
+                    colorscale=heatmap_colorscale,
                     colorbar=dict(title=z_label),
                     hovertemplate=(
                         f"{x_var}: %{{x}}<br>{y_var}: %{{y}}<br>{z_label}: %{{z:.4f}}<extra></extra>"
@@ -265,13 +366,12 @@ class Plotter:
                 showlabels=True,
                 labelfont=dict(size=12),
             )
-            contour_options: dict[str, object] = {}
-            if contour_levels is None:
-                contour_options["ncontours"] = 5
+            if contour_range is None:
+                contour_options: dict[str, object] = {"ncontours": ncontours}
             else:
-                start, end, size = contour_levels
+                start, end, size = contour_range
                 contour_config.update(start=start, end=end, size=size)
-                contour_options["autocontour"] = False
+                contour_options = {"autocontour": False}
 
             traces.append(
                 go.Contour(
@@ -279,9 +379,9 @@ class Plotter:
                     y=y_values,
                     z=Z,
                     contours=contour_config,
-                    colorscale="greys",
+                    colorscale=contour_colorscale,
                     showscale=False,
-                    line_width=1,
+                    line_width=contour_line_width,
                     hoverinfo="skip",
                     **contour_options,
                 )
@@ -295,6 +395,7 @@ class Plotter:
         x_var: str,
         y_var: str,
         show_dcp_markers: bool = True,
+        line_width: int = DEFAULT_LINE_WIDTH,
         pars: ParameterSet | None = None,
     ) -> list[go.Scatter]:
         """
@@ -342,7 +443,7 @@ class Plotter:
                     y=ellipse[:, 1],
                     mode="lines",
                     name=labels[i],
-                    line=dict(width=2, dash="solid" if i == 0 else "dash"),
+                    line=dict(width=line_width, dash="solid" if i == 0 else "dash"),
                     customdata=t_values,
                     hovertemplate=(
                         f"{x_var}: %{{x:.4f}}<br>{y_var}: %{{y:.4f}}"
@@ -421,7 +522,10 @@ class Plotter:
         y_label: str | None = None,
         title: str | None = None,
         line_colors: list[str] | None = None,
-        line_width: int = 2,
+        line_width: int = DEFAULT_LINE_WIDTH,
+        overlay_var: str | None = None,
+        overlay_values: Sequence[float] | None = None,
+        overlay_colorscale: str = DEFAULT_OVERLAY_COLORSCALE,
     ) -> go.Figure:
         """
         Create a 1D probability plot.
@@ -457,10 +561,21 @@ class Plotter:
             y_label,
             title,
         )
-        trace = self._get_1d_frame_data(
-            x_values, x_var, y_vars, line_colors, line_width
+        traces = self._build_traces(
+            "1d",
+            dict(
+                x_values=x_values,
+                x_var=x_var,
+                y_vars=y_vars,
+                line_colors=line_colors,
+                line_width=line_width,
+            ),
+            pars=self.pars,
+            overlay_var=overlay_var,
+            overlay_values=overlay_values,
+            overlay_colorscale=overlay_colorscale,
         )
-        self.fig = go.Figure(data=trace)
+        self.fig = go.Figure(data=traces)
         self.fig.update_layout(
             title=title,
             xaxis_title=x_label,
@@ -479,6 +594,14 @@ class Plotter:
         y_label: str | None = None,
         z_label: str | None = None,
         title: str | None = None,
+        heatmap_colorscale: str = DEFAULT_HEATMAP_COLORSCALE,
+        contour_colorscale: str = DEFAULT_CONTOUR_COLORSCALE,
+        contour_range: tuple[float, float, float] | None = None,
+        ncontours: int = DEFAULT_CONTOUR_COUNT,
+        contour_line_width: int = DEFAULT_CONTOUR_LINE_WIDTH,
+        overlay_var: str | None = None,
+        overlay_values: Sequence[float] | None = None,
+        overlay_colorscale: str = DEFAULT_OVERLAY_COLORSCALE,
     ) -> go.Figure:
         """
         Create a 2D probability heatmap.
@@ -509,8 +632,26 @@ class Plotter:
             y_label,
             title,
         )
-        trace = self._get_2d_frame_data(x_values, x_var, y_values, y_var, z_var)
-        self.fig = go.Figure(data=trace)
+        traces = self._build_traces(
+            "2d",
+            dict(
+                x_values=x_values,
+                x_var=x_var,
+                y_values=y_values,
+                y_var=y_var,
+                z_var=z_var,
+                heatmap_colorscale=heatmap_colorscale,
+                contour_colorscale=contour_colorscale,
+                contour_range=contour_range,
+                ncontours=ncontours,
+                contour_line_width=contour_line_width,
+            ),
+            pars=self.pars,
+            overlay_var=overlay_var,
+            overlay_values=overlay_values,
+            overlay_colorscale=overlay_colorscale,
+        )
+        self.fig = go.Figure(data=traces)
         self.fig.update_layout(
             title=title,
             xaxis_title=x_label,
@@ -527,17 +668,34 @@ class Plotter:
         x_label: str | None = None,
         y_label: str | None = None,
         title: str | None = None,
-    ):
+        line_width: int = DEFAULT_LINE_WIDTH,
+        overlay_var: str | None = None,
+        overlay_values: Sequence[float] | None = None,
+        overlay_colorscale: str = DEFAULT_OVERLAY_COLORSCALE,
+    ) -> go.Figure:
         """Create a bi-probability plot (x_var vs y_var) for a range of t_values."""
 
         x_label, y_label, title = self._resolve_labels(
-            "ellipse",
+            "biprob",
             {"x_var": x_var, "y_var": y_var},
             x_label,
             y_label,
             title,
         )
-        traces = self._get_ellipse_frame_data(t_values, t_var, x_var, y_var)
+        traces = self._build_traces(
+            "biprob",
+            dict(
+                t_values=t_values,
+                t_var=t_var,
+                x_var=x_var,
+                y_var=y_var,
+                line_width=line_width,
+            ),
+            pars=self.pars,
+            overlay_var=overlay_var,
+            overlay_values=overlay_values,
+            overlay_colorscale=overlay_colorscale,
+        )
         self.fig = go.Figure(data=traces)
         self.fig.update_layout(
             title=title,
@@ -555,6 +713,10 @@ class Plotter:
         x_label: str | None = None,
         y_label: str | None = None,
         freeze_axes: bool = True,
+        overlay_var: str | None = None,
+        overlay_values: Sequence[float] | None = None,
+        overlay_colorscale: str = DEFAULT_OVERLAY_COLORSCALE,
+        frame_duration: int = DEFAULT_FRAME_DURATION,
         **plot_kwargs,
     ) -> go.Figure:
         """
@@ -590,32 +752,30 @@ class Plotter:
         ValueError
             If plot_method is not recognised.
         """
-        builder = self._frame_builders.get(plot_method)
-        if builder is None:
-            raise ValueError(
-                f"Unknown plot method: {plot_method!r}. "
-                f"Choose from: {list(self._frame_builders)}"
-            )
+        if overlay_var == animate_var:
+            raise ValueError("Animation and overlay parameters must be different")
 
-        original_pars = self.pars
         frames = []
         frame_ranges: list[tuple[list[float] | None, list[float] | None]] = []
 
-        try:
-            for val in animate_values:
-                self.pars = self.pars.replace(**{animate_var: val})
-                frame_data = builder(**plot_kwargs)
-                x_range, y_range = self._compute_frame_ranges(frame_data)
-                frame_ranges.append((x_range, y_range))
-                frames.append(
-                    go.Frame(
-                        data=frame_data,
-                        name=f"{val:.2f}",
-                    )
+        for val in animate_values:
+            frame_pars = self._replace_parameter(self.pars, animate_var, val)
+            frame_data = self._build_traces(
+                plot_method,
+                plot_kwargs,
+                pars=frame_pars,
+                overlay_var=overlay_var,
+                overlay_values=overlay_values,
+                overlay_colorscale=overlay_colorscale,
+            )
+            x_range, y_range = self._compute_frame_ranges(frame_data)
+            frame_ranges.append((x_range, y_range))
+            frames.append(
+                go.Frame(
+                    data=frame_data,
+                    name=f"{val:.2f}",
                 )
-                self.pars = original_pars  # reset each iteration
-        finally:
-            self.pars = original_pars
+            )
 
         if freeze_axes and frame_ranges:
             x_mins = [xr[0] for xr, _ in frame_ranges if xr is not None]
@@ -653,7 +813,9 @@ class Plotter:
         x_label, y_label, title = self._resolve_labels(
             plot_method, plot_kwargs, x_label, y_label, title
         )
-        updatemenus, sliders = self._create_animation_controls(frames, animate_var)
+        updatemenus, sliders = self._create_animation_controls(
+            frames, animate_var, frame_duration
+        )
 
         self.fig = go.Figure(data=frames[0].data, frames=frames)
         self.fig.update_layout(
@@ -682,7 +844,10 @@ class Plotter:
     # --- Animation controls -------------------------------------------------
 
     def _create_animation_controls(
-        self, frames: list[go.Frame], animate_var: str
+        self,
+        frames: list[go.Frame],
+        animate_var: str,
+        frame_duration: int = DEFAULT_FRAME_DURATION,
     ) -> tuple[list, list]:
         """
         Build Plotly updatemenus and sliders for animation controls.
@@ -711,7 +876,7 @@ class Plotter:
                             None,
                             {
                                 "frame": {
-                                    "duration": self.frame_duration,
+                                    "duration": frame_duration,
                                     "redraw": True,
                                 },
                                 "fromcurrent": True,
