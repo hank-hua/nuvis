@@ -1,7 +1,14 @@
 import streamlit as st
 
 from frontend.components import parameter_setter
-from frontend.probability_views import render_1d, render_2d, render_biprob
+from frontend.probability_views import (
+    render_1d,
+    render_2d,
+    render_biprob,
+    reserved_1d_parameters,
+    reserved_2d_parameters,
+    reserved_biprob_parameters,
+)
 
 st.set_page_config(
     page_title="Probability Visualiser",
@@ -9,17 +16,24 @@ st.set_page_config(
 )
 
 st.title("Probability Visualiser")
-parameter_setter()
 
-tab_1d, tab_2d, tab_biprob = st.tabs(
-    ["1D probabilities", "2D probabilities", "Bi-probability"]
+view = st.segmented_control(
+    "Visualisation",
+    options=["1D probabilities", "2D probabilities", "Bi-probability"],
+    default="1D probabilities",
+    key="probability_view",
 )
 
-with tab_1d:
+reserved_parameters = {
+    "1D probabilities": reserved_1d_parameters,
+    "2D probabilities": reserved_2d_parameters,
+    "Bi-probability": reserved_biprob_parameters,
+}[view]()
+parameter_setter(disabled_parameters=reserved_parameters)
+
+if view == "1D probabilities":
     render_1d()
-
-with tab_2d:
+elif view == "2D probabilities":
     render_2d()
-
-with tab_biprob:
+else:
     render_biprob()

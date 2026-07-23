@@ -94,47 +94,6 @@ class Plotter:
             title = title or f"{x_label} vs {y_label}"
         return x_label, y_label, title
 
-    def _build_scatter(
-        self,
-        df,
-        x_var: str,
-        y_var: str,
-        y_label: str,
-        line_color: str | None,
-        line_width: int,
-    ) -> go.Scatter:
-        """
-        Build a Plotly Scatter trace from a probability DataFrame.
-
-        Parameters
-        ----------
-        df : pd.DataFrame
-            DataFrame containing x_var and y_var columns.
-        x_var : str
-            Column name for the x-axis.
-        y_var : str
-            Column name for the y-axis.
-        y_label : str
-            Display label for the y-axis (used in hover).
-        line_color : str, optional
-            Line colour.
-        line_width : int
-            Line width.
-
-        Returns
-        -------
-        go.Scatter
-            Plotly scatter trace.
-        """
-        return go.Scatter(
-            x=df[x_var],
-            y=df[y_var],
-            mode="lines",
-            line=dict(width=line_width, color=line_color),
-            name=y_label,
-            hovertemplate=(f"{x_var}: %{{x}}<br>{y_label}: %{{y:.4f}}<extra></extra>"),
-        )
-
     @property
     def _frame_builders(self) -> dict[str, Callable]:
         """Dispatch map from plot method name to frame-data builder."""
@@ -288,15 +247,20 @@ class Plotter:
             y_vars=y_vars,
             matter=self.matter,
         )
+        x_label = self._resolve_label(x_var, None)
         y_labels = [COLUMN_TO_PRETTY[y_var] for y_var in y_vars]
         return [
-            self._build_scatter(
-                df,
-                x_var,
-                y_vars[i],
-                y_labels[i],
-                line_colors[i] if line_colors else None,
-                line_width,
+            go.Scatter(
+                x=df[x_var],
+                y=df[y_vars[i]],
+                mode="lines",
+                line=dict(
+                    width=line_width, color=line_colors[i] if line_colors else None
+                ),
+                name=y_labels[i],
+                hovertemplate=(
+                    f"{x_label}: %{{x}}<br>{y_labels[i]}: %{{y:.4f}}<extra></extra>"
+                ),
             )
             for i in range(len(y_vars))
         ]
@@ -339,7 +303,9 @@ class Plotter:
             List containing the heatmap trace and optional contour trace.
         """
         pars = self.pars if pars is None else pars
-        z_label = COLUMN_TO_PRETTY.get(z_var, z_var)
+        x_label = self._resolve_label(x_var, None)
+        y_label = self._resolve_label(y_var, None)
+        z_label = self._resolve_label(z_var, None)
         Z, _ = get_probs_2d(
             pars,
             x_values,
@@ -359,7 +325,7 @@ class Plotter:
                     colorscale=heatmap_colorscale,
                     colorbar=dict(title=z_label),
                     hovertemplate=(
-                        f"{x_var}: %{{x}}<br>{y_var}: %{{y}}<br>{z_label}: %{{z:.4f}}<extra></extra>"
+                        f"{x_label}: %{{x}}<br>{y_label}: %{{y}}<br>{z_label}: %{{z:.4f}}<extra></extra>"
                     ),
                 )
             )
@@ -439,6 +405,8 @@ class Plotter:
             matter=self.matter,
         )
         t_label = self._resolve_label(t_var, None)
+        x_label = self._resolve_label(x_var, None)
+        y_label = self._resolve_label(y_var, None)
         labels = ["NO", "IO"]
         for i, ellipse in enumerate([ellipse_NO, ellipse_IO]):
             traces.append(
@@ -450,7 +418,7 @@ class Plotter:
                     line=dict(width=line_width, dash="solid" if i == 0 else "dash"),
                     customdata=t_values,
                     hovertemplate=(
-                        f"{x_var}: %{{x:.4f}}<br>{y_var}: %{{y:.4f}}"
+                        f"{x_label}: %{{x:.4f}}<br>{y_label}: %{{y:.4f}}"
                         f"<br>{t_label}: %{{customdata:.4f}}"
                     ),
                 )
@@ -472,8 +440,8 @@ class Plotter:
                         text=[symbols_list[dcp_list.index(dcp)]] * 2,
                         textfont=dict(size=sizes_list[dcp_list.index(dcp)]),
                         hovertemplate=(
-                            f"{x_var}: %{{x:.4f}}<br>{y_var}: %{{y:.4f}}"
-                            f"<br>δCP: {dcp:.4f}<extra></extra>"
+                            f"{x_label}: %{{x:.4f}}<br>{y_label}: %{{y:.4f}}"
+                            f"<br>δ_CP: {dcp:.4f}<extra></extra>"
                         ),
                         showlegend=False,
                     )

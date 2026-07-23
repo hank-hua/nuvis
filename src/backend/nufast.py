@@ -89,8 +89,8 @@ def calc_prob(
             pars["s13sq"],
             pars["s23sq"],
             pars["delta"],
-            pars["Dmsq21"],
-            pars["Dmsq31"],
+            pars["dmsq21"],
+            pars["dmsq31"],
             pars["L"],
             pars["E"],
         )
@@ -99,8 +99,8 @@ def calc_prob(
             pars["s13sq"],
             pars["s23sq"],
             pars["delta"],
-            pars["Dmsq21"],
-            pars["Dmsq31"],
+            pars["dmsq21"],
+            pars["dmsq31"],
             pars["L"],
             -pars["E"],
         )

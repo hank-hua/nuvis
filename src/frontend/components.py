@@ -39,10 +39,18 @@ def _apply_osc_preset() -> None:
         st.session_state[key] = value
 
 
-def parameter_setter(title: str = "Set oscillation parameters") -> None:
-    """Render session-backed oscillation parameter and experiment controls."""
+def parameter_setter(
+    title: str = "Set oscillation parameters",
+    disabled_parameters: set[str] | None = None,
+) -> None:
+    """Render session-backed oscillation parameters and presets.
+
+    Parameters controlled by the active plot can be supplied in
+    ``disabled_parameters`` to prevent confusing edits that do not affect it.
+    """
     hide_number_input_buttons()
     pars = get_pars_from_session()
+    disabled_parameters = disabled_parameters or set()
 
     with st.expander(title, expanded=False):
         cols = st.columns(2)
@@ -74,11 +82,7 @@ def parameter_setter(title: str = "Set oscillation parameters") -> None:
                         else VARIABLES_PRETTY[i]
                     ),
                     format="%.3e" if is_mass_splitting else "%.4g",
-                    help=(
-                        "Scientific notation; for example, 7.500e-05."
-                        if is_mass_splitting
-                        else None
-                    ),
+                    disabled=key in disabled_parameters,
                 )
 
 

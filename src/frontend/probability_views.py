@@ -8,6 +8,39 @@ from frontend.plotter import Plotter
 from frontend.session import get_pars_from_session
 
 
+def reserved_1d_parameters() -> set[str]:
+    """Return session-configured parameters controlled by the 1D plot."""
+    reserved = {st.session_state.get("1d_x_param_name", "E")}
+    if st.session_state.get("prob_1d_animate", True):
+        reserved.add(st.session_state.get("1d_anim_param_name", "delta"))
+    if st.session_state.get("prob_1d_overlay", False):
+        reserved.add(st.session_state.get("1d_overlay_param_name", "s23sq"))
+    return reserved
+
+
+def reserved_2d_parameters() -> set[str]:
+    """Return session-configured parameters controlled by the 2D plot."""
+    reserved = {
+        st.session_state.get("2d_x_param_name", "s23sq"),
+        st.session_state.get("2d_y_param_name", "delta"),
+    }
+    if st.session_state.get("prob_2d_animate", False):
+        reserved.add(st.session_state.get("2d_anim_param_name", "E"))
+    if st.session_state.get("prob_2d_overlay", False):
+        reserved.add(st.session_state.get("2d_overlay_param_name", "s13sq"))
+    return reserved
+
+
+def reserved_biprob_parameters() -> set[str]:
+    """Return session-configured parameters controlled by the bi-probability plot."""
+    reserved = {st.session_state.get("biprob_val_param_name", "delta")}
+    if st.session_state.get("biprob_animate", True):
+        reserved.add(st.session_state.get("biprob_anim_param_name", "E"))
+    if st.session_state.get("biprob_overlay", False):
+        reserved.add(st.session_state.get("biprob_overlay_param_name", "s23sq"))
+    return reserved
+
+
 def render_1d() -> None:
     """Render the 1D probability visualiser tab."""
     controls, plot = st.columns([1, 3])
