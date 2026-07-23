@@ -5,7 +5,7 @@ import streamlit as st
 from backend.defaults import COLUMN_TO_PRETTY
 from frontend.components import osc_channel_selector, parameter_range_setter
 from frontend.plotter import Plotter
-from frontend.session import get_pars_from_session
+from frontend.session import get_pars_from_session, get_session_state
 
 
 def reserved_1d_parameters() -> set[str]:
@@ -56,8 +56,8 @@ def render_1d() -> None:
         )
 
         with st.popover("Animation settings"):
-            do_animate = st.checkbox("Animate", value=True, key="prob_1d_animate")
-            freeze_axes = st.checkbox(
+            do_animate = st.toggle("Animate", value=True, key="prob_1d_animate")
+            freeze_axes = st.toggle(
                 "Freeze axes", value=False, key="prob_1d_freeze_axes"
             )
             anim_var, anim_values = parameter_range_setter(
@@ -68,7 +68,7 @@ def render_1d() -> None:
             )
 
         with st.popover("Overlay settings"):
-            do_overlay = st.checkbox("Overlay", value=False, key="prob_1d_overlay")
+            do_overlay = st.toggle("Overlay", value=False, key="prob_1d_overlay")
             overlay_var, overlay_values = parameter_range_setter(
                 "s23sq",
                 key_prefix="1d_overlay_",
@@ -93,7 +93,10 @@ def render_1d() -> None:
         overlay_var=overlay_var if do_overlay else None,
         overlay_values=overlay_values if do_overlay else None,
     )
-    plotter = Plotter(pars=get_pars_from_session())
+    plotter = Plotter(
+        pars=get_pars_from_session(),
+        matter=get_session_state().get("matter_effects", True),
+    )
 
     if do_animate:
         plotter.animate(
@@ -137,7 +140,7 @@ def render_2d() -> None:
         )
 
         with st.popover("Animation settings"):
-            do_animate = st.checkbox("Animate", value=False, key="prob_2d_animate")
+            do_animate = st.toggle("Animate", value=False, key="prob_2d_animate")
             anim_var, anim_values = parameter_range_setter(
                 "E",
                 key_prefix="2d_anim_",
@@ -146,7 +149,7 @@ def render_2d() -> None:
             )
 
         with st.popover("Overlay settings"):
-            do_overlay = st.checkbox("Overlay", value=False, key="prob_2d_overlay")
+            do_overlay = st.toggle("Overlay", value=False, key="prob_2d_overlay")
             overlay_var, overlay_values = parameter_range_setter(
                 "s13sq",
                 key_prefix="2d_overlay_",
@@ -174,7 +177,10 @@ def render_2d() -> None:
         overlay_var=overlay_var if do_overlay else None,
         overlay_values=overlay_values if do_overlay else None,
     )
-    plotter = Plotter(pars=get_pars_from_session())
+    plotter = Plotter(
+        pars=get_pars_from_session(),
+        matter=get_session_state().get("matter_effects", False),
+    )
 
     if do_animate:
         plotter.animate(
@@ -220,8 +226,8 @@ def render_biprob() -> None:
         )
 
         with st.popover("Animation settings"):
-            do_animate = st.checkbox("Animate", value=True, key="biprob_animate")
-            freeze_axes = st.checkbox(
+            do_animate = st.toggle("Animate", value=True, key="biprob_animate")
+            freeze_axes = st.toggle(
                 "Freeze axes", value=False, key="biprob_freeze_axes"
             )
             anim_var, anim_values = parameter_range_setter(
@@ -232,7 +238,7 @@ def render_biprob() -> None:
             )
 
         with st.popover("Overlay settings"):
-            do_overlay = st.checkbox("Overlay", value=False, key="biprob_overlay")
+            do_overlay = st.toggle("Overlay", value=False, key="biprob_overlay")
             overlay_var, overlay_values = parameter_range_setter(
                 "s23sq",
                 key_prefix="biprob_overlay_",
@@ -265,7 +271,10 @@ def render_biprob() -> None:
         overlay_values=overlay_values if do_overlay else None,
         show_dcp_markers=t_var == "delta",
     )
-    plotter = Plotter(pars=get_pars_from_session())
+    plotter = Plotter(
+        pars=get_pars_from_session(),
+        matter=get_session_state().get("matter_effects", True),
+    )
 
     if do_animate:
         plotter.animate(

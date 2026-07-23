@@ -53,7 +53,7 @@ def parameter_setter(
     disabled_parameters = disabled_parameters or set()
 
     with st.expander(title, expanded=False):
-        cols = st.columns(2)
+        cols = st.columns(3)
         with cols[0]:
             _ = st.selectbox(
                 "Parameter preset",
@@ -69,6 +69,12 @@ def parameter_setter(
                 key="experiment_preset",
                 on_change=_apply_experiment_preset,
                 help="Sets the energy E and baseline L for the selected experiment.",
+            )
+        with cols[2]:
+            _ = st.toggle(
+                "Matter effects",
+                value=st.session_state.get("matter_effects", True),
+                key="matter_effects",
             )
         cols = st.columns(6)
         for i, key in enumerate(pars.to_dict().keys()):
