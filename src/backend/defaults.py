@@ -3,18 +3,48 @@ import numpy as np
 from .parameter import ParameterSet
 from .variables import VariableSetting
 
-DEFAULT_VALUES = ParameterSet(
+DEFAULT_OSC_VALUES = dict(
     s12sq=0.31,
     s13sq=0.02,
     s23sq=0.55,
     delta=0.7 * np.pi,
     dmsq21=7.5e-5,
     dmsq31=2.5e-3,
-    rho=3,  # g/cc
-    ye=0.5,
-    E=2.3,  # GeV
-    L=1300,  # km
 )
+
+DEFAULT_MATTER_VALUES = dict(
+    rho=3,
+    ye=0.5,
+)
+
+# NUFIT 6.1
+NUFIT_OSC_VALUES = dict(
+    s12sq=0.3088,
+    s13sq=0.02249,
+    s23sq=0.470,
+    delta=np.deg2rad(207) - 2 * np.pi,
+    dmsq21=7.537e-5,
+    dmsq31=2.521e-3,
+)
+
+T2K_OSC_VALUES = dict(
+    s23sq=0.561,
+    dmsq31=2.494e-3 + 7.53e-5,
+    delta=-1.97,
+)
+
+T2KNOVA_OSC_VALUES = dict(
+    dmsq31=-2.48e-3 + 7.53e-5,
+    delta=-0.47 * np.pi,
+    s23sq=0.563,
+)
+
+OSC_PRESETS = {
+    "Default": DEFAULT_OSC_VALUES,
+    "NuFit 6.1": NUFIT_OSC_VALUES,
+    "T2K": T2K_OSC_VALUES,
+    "T2K+NOvA": T2KNOVA_OSC_VALUES,
+}
 
 NOVA_LIKE = {
     "E": 2.0,
@@ -25,6 +55,27 @@ T2K_LIKE = {
     "E": 0.6,  # GeV
     "L": 295,  # km
 }
+
+DUNE_LIKE = {
+    "E": 2.3,  # GeV
+    "L": 1300,  # km
+}
+
+JUNO_LIKE = {
+    "E": 0.003,  # GeV
+    "L": 53,  # km
+}
+
+EXPERIMENT_PRESETS = {
+    "DUNE-like": DUNE_LIKE,
+    "NOvA-like": NOVA_LIKE,
+    "T2K-like": T2K_LIKE,
+    "JUNO-like": JUNO_LIKE,
+}
+
+DEFAULT_VALUES = ParameterSet(
+    **{**DEFAULT_OSC_VALUES, **DEFAULT_MATTER_VALUES, **DUNE_LIKE}
+)
 
 VARIABLE_SETTINGS = {
     "s12sq": VariableSetting(
@@ -124,7 +175,7 @@ VARIABLE_SETTINGS = {
         min_value=0.0,
         max_value=2000 / 0.01,
         default_low=0.0,
-        default_high=2000 / 0.01,
+        default_high=2000,
         num_steps=100,
     ),
 }

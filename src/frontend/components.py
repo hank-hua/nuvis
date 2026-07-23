@@ -7,32 +7,82 @@ from numpy.typing import NDArray
 from backend.defaults import (
     COLUMNS,
     COLUMNS_PRETTY,
+    EXPERIMENT_PRESETS,
+    OSC_PRESETS,
     VARIABLE_SETTINGS,
+    VARIABLE_TO_PRETTY,
     VARIABLES,
     VARIABLES_PRETTY,
 )
-from backend.parameter import ParameterSet
 from frontend.session import (
     get_pars_from_session,
     get_session_state,
 )
 
 
-def parameter_setter(title: str = "Set oscillation parameters") -> None:
-    """
-    A Streamlit component for setting oscillation parameters in the session state.
-    """
+def hide_number_input_buttons() -> None:
+    """Hide Streamlit number-input step buttons without adding layout height."""
+    st.html("<style>[data-testid='stNumberInput'] button { display: none; }</style>")
 
+
+def _apply_experiment_preset() -> None:
+    """Apply the selected experiment's energy and baseline to session state."""
+    preset = EXPERIMENT_PRESETS.get(st.session_state["experiment_preset"], {})
+    for key, value in preset.items():
+        st.session_state[key] = value
+
+
+def _apply_osc_preset() -> None:
+    """Apply the selected oscillation parameter preset to session state."""
+    preset = OSC_PRESETS.get(st.session_state["osc_preset"], {})
+    for key, value in preset.items():
+        st.session_state[key] = value
+
+
+def parameter_setter(title: str = "Set oscillation parameters") -> None:
+    """Render session-backed oscillation parameter and experiment controls."""
+    hide_number_input_buttons()
     pars = get_pars_from_session()
 
     with st.expander(title, expanded=False):
+        cols = st.columns(2)
+        with cols[0]:
+            _ = st.selectbox(
+                "Parameter preset",
+                options=OSC_PRESETS.keys(),
+                key="osc_preset",
+                on_change=_apply_osc_preset,
+                help="Sets the oscillation parameters to the selected preset values.",
+            )
+        with cols[1]:
+            _ = st.selectbox(
+                "Experiment preset",
+                options=EXPERIMENT_PRESETS.keys(),
+                key="experiment_preset",
+                on_change=_apply_experiment_preset,
+                help="Sets the energy E and baseline L for the selected experiment.",
+            )
         cols = st.columns(6)
         for i, key in enumerate(pars.to_dict().keys()):
             with cols[i % 6]:
-                parameter_input(key, label=VARIABLES_PRETTY[i], format="%g")
+                is_mass_splitting = key in {"dmsq21", "dmsq31"}
+                parameter_input(
+                    key,
+                    label=(
+                        f"{VARIABLES_PRETTY[i]} [eV²]"
+                        if is_mass_splitting
+                        else VARIABLES_PRETTY[i]
+                    ),
+                    format="%.3e" if is_mass_splitting else "%.4g",
+                    help=(
+                        "Scientific notation; for example, 7.500e-05."
+                        if is_mass_splitting
+                        else None
+                    ),
+                )
 
 
-def parameter_input(key: str, label: str, format: str = "%g", **kwargs):
+def parameter_input(key: str, label: str, format: str = "%.4g", **kwargs):
     """
     A Streamlit component for setting a single parameter in the session state.
     """
@@ -103,6 +153,11 @@ def parameter_range_setter(
         var_steps = override.get("num_steps", var_steps)
         var_scale = override.get("scale", var_scale)
 
+    param_name_key = f"{key_prefix}param_name"
+    selected = st.session_state.get(param_name_key)
+    if selected in VARIABLES_PRETTY:
+        st.session_state[param_name_key] = VARIABLES[VARIABLES_PRETTY.index(selected)]
+
     container = (
         st.expander(expander_label, expanded=expanded)
         if expander_label is not None
@@ -112,27 +167,22 @@ def parameter_range_setter(
         if orientation == "horizontal":
             cols = st.columns(5)
             with cols[0]:
-                param_name_pretty = st.selectbox(
+                param_name = st.selectbox(
                     "Parameter name",
-                    options=VARIABLES_PRETTY,
+                    options=VARIABLES,
+                    format_func=VARIABLE_TO_PRETTY.__getitem__,
                     index=VARIABLES.index(default_var),
-                    key=f"{key_prefix}param_name",
+                    key=param_name_key,
                     on_change=_reset_range_to_defaults,
-                    args=(
-                        f"{key_prefix}param_name",
-                        key_prefix,
-                        use_default_range,
-                        override,
-                    ),
+                    args=(param_name_key, key_prefix, use_default_range, override),
                 )
-                param_name = VARIABLES[VARIABLES_PRETTY.index(param_name_pretty)]
             with cols[1]:
                 min_value = st.number_input(
-                    "Min", value=var_min, format="%g", key=f"{key_prefix}min_value"
+                    "Min", value=var_min, format="%.4g", key=f"{key_prefix}min_value"
                 )
             with cols[2]:
                 max_value = st.number_input(
-                    "Max", value=var_max, format="%g", key=f"{key_prefix}max_value"
+                    "Max", value=var_max, format="%.4g", key=f"{key_prefix}max_value"
                 )
             with cols[3]:
                 num_steps = st.number_input(
@@ -143,37 +193,32 @@ def parameter_range_setter(
                 )
             with cols[4]:
                 scale = st.selectbox(
-                    "Scale",
+                    "Step interval",
                     options=["linear", "log"],
                     index=["linear", "log"].index(var_scale),
                     key=f"{key_prefix}scale",
                 )
         else:
-            param_name_pretty = st.selectbox(
+            param_name = st.selectbox(
                 "Parameter name",
-                options=VARIABLES_PRETTY,
+                options=VARIABLES,
+                format_func=VARIABLE_TO_PRETTY.__getitem__,
                 index=VARIABLES.index(default_var),
-                key=f"{key_prefix}param_name",
+                key=param_name_key,
                 on_change=_reset_range_to_defaults,
-                args=(
-                    f"{key_prefix}param_name",
-                    key_prefix,
-                    use_default_range,
-                    override,
-                ),
+                args=(param_name_key, key_prefix, use_default_range, override),
             )
-            param_name = VARIABLES[VARIABLES_PRETTY.index(param_name_pretty)]
             min_value = st.number_input(
-                "Min", value=var_min, format="%g", key=f"{key_prefix}min_value"
+                "Min", value=var_min, format="%.4g", key=f"{key_prefix}min_value"
             )
             max_value = st.number_input(
-                "Max", value=var_max, format="%g", key=f"{key_prefix}max_value"
+                "Max", value=var_max, format="%.4g", key=f"{key_prefix}max_value"
             )
             num_steps = st.number_input(
                 "No. steps", value=var_steps, min_value=2, key=f"{key_prefix}num_steps"
             )
             scale = st.selectbox(
-                "Scale",
+                "Step interval",
                 options=["linear", "log"],
                 index=["linear", "log"].index(var_scale),
                 key=f"{key_prefix}scale",
