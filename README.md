@@ -1,1 +1,1 @@
-
+This is a rewrite of my neutrino oscillation probability visualiser, inspired by Luke Pickering's [biprobnufast notebook](https://github.com/luketpickering/biprobnufast). It uses [NuFast-LBL](https://github.com/PeterDenton/NuFast-LBL) by Peter Denton and Stephen Parke [[arxiv:2405.02400](https://arxiv.org/abs/2405.02400)] for probability calculations. It is written entirely in Python, with the frontend powered by [streamlit](https://streamlit.io/).
