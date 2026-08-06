@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 
 from .defaults import COLUMNS, N_NEWTON
+from .functional_parameters import replace_parameter
 from .parameter import ParameterSet
 
 _nufast_path = (
@@ -112,19 +113,16 @@ def get_probs_1d(
     pars: ParameterSet,
     x_values: np.ndarray,
     x_var: str = "E",
-    y_vars: list[str] = ["mu_mu"],
+    y_vars: list[str] | None = None,
     matter: bool = True,
 ) -> pd.DataFrame:
     """Calculate the oscillation probabilities for a 1D range of x_values.
     Returns a DataFrame with columns for x_var and y_var."""
-    x_var_calc = x_var
-    x_values_calc = x_values
-    if x_var == "L/E":
-        x_values_calc = pars["L"] / x_values
-        x_var_calc = "E"
+    y_vars = ["mu_mu"] if y_vars is None else y_vars
     df = pd.DataFrame({x_var: x_values})
     results = [
-        calc_prob(pars.replace(**{x_var_calc: x}), matter=matter) for x in x_values_calc
+        calc_prob(replace_parameter(pars, x_var, value), matter=matter)
+        for value in x_values
     ]
     df[y_vars] = np.array([r[y_vars] for r in results])
     return df
@@ -139,23 +137,14 @@ def get_probs_2d(
     z_var: str = "e_mu",
     matter: bool = True,
 ):
-    x_var_calc = x_var
-    x_values_calc = x_values
-    if x_var == "L/E":
-        x_values_calc = pars["L"] / x_values
-        x_var_calc = "E"
-    y_var_calc = y_var
-    y_values_calc = y_values
-    if y_var == "L/E":
-        y_values_calc = pars["L"] / y_values
-        y_var_calc = "E"
     if z_var not in COLUMNS:
         raise ValueError(f"z_var ({z_var}) must be one of the probability channels")
-    X, Y = np.meshgrid(x_values_calc, y_values_calc)
-    Z = np.zeros_like(X)
+    X, Y = np.meshgrid(x_values, y_values)
+    Z = np.zeros_like(X, dtype=float)
     for idx in np.ndindex(X.shape):
         i, j = idx
-        pars_ij = pars.replace(**{x_var_calc: X[i, j], y_var_calc: Y[i, j]})
+        pars_ij = replace_parameter(pars, x_var, float(X[i, j]))
+        pars_ij = replace_parameter(pars_ij, y_var, float(Y[i, j]))
 
         osc_res = calc_prob(pars_ij, matter=matter)
         Z[i, j] = osc_res[z_var]
@@ -174,11 +163,8 @@ def get_ellipse(
     if x_var not in COLUMNS or y_var not in COLUMNS:
         raise ValueError("x_var and y_var must be one of the probability channels")
     ellipse = np.zeros((len(t_values), 2))
-    if t_var == "L/E":
-        t_values = pars["L"] / t_values
-        t_var = "E"
     for i, t in enumerate(t_values):
-        pars_t = pars.replace(**{t_var: t})
+        pars_t = replace_parameter(pars, t_var, t)
         osc_res = calc_prob(pars_t, matter=matter)
         ellipse[i, 0] = osc_res[x_var]
         ellipse[i, 1] = osc_res[y_var]

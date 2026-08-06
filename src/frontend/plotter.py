@@ -10,6 +10,7 @@ import streamlit as st
 from plotly.colors import sample_colorscale
 
 from backend.defaults import COLUMN_TO_PRETTY, VARIABLE_TO_PRETTY
+from backend.functional_parameters import replace_parameter
 from backend.nufast import calc_prob, get_ellipse, get_probs_1d, get_probs_2d
 from backend.parameter import ParameterSet
 
@@ -103,18 +104,6 @@ class Plotter:
             "biprob": self._get_ellipse_frame_data,
         }
 
-    def _replace_parameter(
-        self, pars: ParameterSet, variable: str, value: float
-    ) -> ParameterSet:
-        """Return parameters with one plotting variable replaced."""
-        if variable == "L/E":
-            if value <= 0:
-                raise ValueError("L/E must be positive when used as a parameter sweep")
-            return pars.replace(E=pars["L"] / value)
-        if variable not in pars:
-            raise ValueError(f"Unknown parameter: {variable!r}")
-        return pars.replace(**{variable: value})
-
     def _build_traces(
         self,
         plot_method: str,
@@ -168,7 +157,7 @@ class Plotter:
         frame_data = []
         for value, color in zip(values, colors):
             traces = builder(
-                pars=self._replace_parameter(pars, overlay_var, value),
+                pars=replace_parameter(pars, overlay_var, value),
                 **kwargs,
             )
             label = f"{self._resolve_label(overlay_var, None)}={value:.4g}"
@@ -742,7 +731,7 @@ class Plotter:
         frame_ranges: list[tuple[list[float] | None, list[float] | None]] = []
 
         for val in animate_values:
-            frame_pars = self._replace_parameter(self.pars, animate_var, val)
+            frame_pars = replace_parameter(self.pars, animate_var, val)
             frame_data = self._build_traces(
                 plot_method,
                 plot_kwargs,

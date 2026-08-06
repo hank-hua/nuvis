@@ -139,7 +139,7 @@ VARIABLE_SETTINGS = {
         max_value=10.0,
         default_low=1.0,
         default_high=5.0,
-        num_steps=100,
+        num_steps=50,
     ),
     "ye": VariableSetting(
         name="ye",
@@ -148,7 +148,7 @@ VARIABLE_SETTINGS = {
         max_value=1.0,
         default_low=0.4,
         default_high=0.6,
-        num_steps=100,
+        num_steps=50,
     ),
     "E": VariableSetting(
         name="E",
@@ -167,16 +167,25 @@ VARIABLE_SETTINGS = {
         max_value=2000,
         default_low=0.0,
         default_high=2000,
-        num_steps=100,
+        num_steps=50,
     ),
     "L/E": VariableSetting(
         name="L/E",
         default_value=DEFAULT_VALUES["L"] / DEFAULT_VALUES["E"],
-        min_value=0.0,
+        min_value=0.001,
         max_value=2000 / 0.01,
-        default_low=0.0,
+        default_low=0.1,
         default_high=2000,
-        num_steps=100,
+        num_steps=50,
+    ),
+    "L_constLE": VariableSetting(
+        name="L_constLE",
+        default_value=DEFAULT_VALUES["L"],
+        min_value=0.001,
+        max_value=2000,
+        default_low=0.1,
+        default_high=2000,
+        num_steps=50,
     ),
 }
 
@@ -258,5 +267,6 @@ VARIABLE_TO_PRETTY = {
     "E": "E",
     "L": "L",
     "L/E": "L/E",
+    "L_constLE": "L (constant L/E)",
 }
 VARIABLES_PRETTY = [VARIABLE_TO_PRETTY[v] for v in VARIABLES]

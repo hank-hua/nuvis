@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass, fields
 from dataclasses import replace as dc_replace
-from typing import Dict, Iterator
+from typing import Iterator
 
 
 @dataclass(frozen=True)
@@ -45,10 +45,10 @@ class ParameterSet:
     def __iter__(self) -> Iterator[str]:
         return iter(f.name for f in fields(self))
 
-    def replace(self, **kwargs) -> ParameterSet:
+    def replace(self, **kwargs: float) -> ParameterSet:
         """Return a new ParameterSet with the specified fields replaced."""
         return dc_replace(self, **kwargs)
 
-    def to_dict(self) -> Dict[str, float]:
+    def to_dict(self) -> dict[str, float]:
         """Convert the ParameterSet to a dictionary."""
         return asdict(self)
