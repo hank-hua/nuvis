@@ -122,6 +122,7 @@ VARIABLE_SETTINGS = {
         default_low=7e-5,
         default_high=8e-5,
         num_steps=100,
+        display_format=".3e",
     ),
     "dmsq31": VariableSetting(
         name="dmsq31",
@@ -131,6 +132,7 @@ VARIABLE_SETTINGS = {
         default_low=-2.6e-3,
         default_high=2.6e-3,
         num_steps=100,
+        display_format=".3e",
     ),
     "rho": VariableSetting(
         name="rho",
@@ -190,6 +192,20 @@ VARIABLE_SETTINGS = {
 }
 
 VARIABLES = list(VARIABLE_SETTINGS.keys())
+
+
+def get_variable_display_format(variable: str) -> str:
+    """Return the format specification registered for a plotting variable."""
+    setting = VARIABLE_SETTINGS.get(variable)
+    if setting is None:
+        raise ValueError(f"Unknown variable: {variable!r}")
+    return setting.display_format
+
+
+def format_variable_value(variable: str, value: float) -> str:
+    """Format a plotting variable using its registered display metadata."""
+    return format(value, get_variable_display_format(variable))
+
 
 N_NEWTON = 5
 

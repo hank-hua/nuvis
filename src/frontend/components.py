@@ -87,27 +87,46 @@ def parameter_setter(
                         if is_mass_splitting
                         else VARIABLES_PRETTY[i]
                     ),
-                    format="%.3e" if is_mass_splitting else "%.4g",
                     disabled=key in disabled_parameters,
                 )
 
 
-def parameter_input(key: str, label: str, format: str = "%.4g", **kwargs):
-    """
-    A Streamlit component for setting a single parameter in the session state.
-    """
+def parameter_input(key: str, label: str, disabled: bool = False) -> None:
+    """Render a session-backed input using the variable's display metadata."""
     session_state = get_session_state()
+    setting = VARIABLE_SETTINGS[key]
     value = session_state.get(key, 0.0)
-    new_value = st.number_input(label, value=value, format=format, **kwargs)
+    new_value = st.number_input(
+        label,
+        value=value,
+        format=f"%{setting.display_format}",
+        disabled=disabled,
+    )
     if new_value != value:
         session_state[key] = new_value
+
+
+def _range_number_input(
+    label: str,
+    value: float,
+    variable: str,
+    key: str,
+) -> float:
+    """Render a range bound using the selected variable's numeric metadata."""
+    setting = VARIABLE_SETTINGS[variable]
+    return st.number_input(
+        label,
+        value=float(value),
+        format=f"%{setting.display_format}",
+        key=key,
+    )
 
 
 def _reset_range_to_defaults(
     param_name_key: str,
     key_prefix: str,
     use_default_range: bool,
-    override: dict[str, float] | None = None,
+    override: dict[str, float | str] | None = None,
 ):
     """on_change callback — overwrites range widget state with defaults for the newly selected parameter."""
     selected = st.session_state[param_name_key]
@@ -134,7 +153,7 @@ def parameter_range_setter(
     orientation: str = "horizontal",
     key_prefix: str = "",
     use_default_range: bool = False,
-    override: dict[str, float] | None = None,
+    override: dict[str, float | str] | None = None,
     expander_label: str | None = None,
     expanded: bool = False,
 ) -> tuple[str, NDArray[np.float64]]:
@@ -158,10 +177,10 @@ def parameter_range_setter(
     var_scale = var.scale
 
     if override is not None:
-        var_min = override.get("min_value", var_min)
-        var_max = override.get("max_value", var_max)
-        var_steps = override.get("num_steps", var_steps)
-        var_scale = override.get("scale", var_scale)
+        var_min = float(override.get("min_value", var_min))
+        var_max = float(override.get("max_value", var_max))
+        var_steps = int(override.get("num_steps", var_steps))
+        var_scale = str(override.get("scale", var_scale))
 
     param_name_key = f"{key_prefix}param_name"
     selected = st.session_state.get(param_name_key)
@@ -187,12 +206,12 @@ def parameter_range_setter(
                     args=(param_name_key, key_prefix, use_default_range, override),
                 )
             with cols[1]:
-                min_value = st.number_input(
-                    "Min", value=var_min, format="%.4g", key=f"{key_prefix}min_value"
+                min_value = _range_number_input(
+                    "Min", var_min, param_name, f"{key_prefix}min_value"
                 )
             with cols[2]:
-                max_value = st.number_input(
-                    "Max", value=var_max, format="%.4g", key=f"{key_prefix}max_value"
+                max_value = _range_number_input(
+                    "Max", var_max, param_name, f"{key_prefix}max_value"
                 )
             with cols[3]:
                 num_steps = st.number_input(
@@ -203,7 +222,7 @@ def parameter_range_setter(
                 )
             with cols[4]:
                 scale = st.selectbox(
-                    "Step interval",
+                    "Step scale",
                     options=["linear", "log"],
                     index=["linear", "log"].index(var_scale),
                     key=f"{key_prefix}scale",
@@ -218,17 +237,17 @@ def parameter_range_setter(
                 on_change=_reset_range_to_defaults,
                 args=(param_name_key, key_prefix, use_default_range, override),
             )
-            min_value = st.number_input(
-                "Min", value=var_min, format="%.4g", key=f"{key_prefix}min_value"
+            min_value = _range_number_input(
+                "Min", var_min, param_name, f"{key_prefix}min_value"
             )
-            max_value = st.number_input(
-                "Max", value=var_max, format="%.4g", key=f"{key_prefix}max_value"
+            max_value = _range_number_input(
+                "Max", var_max, param_name, f"{key_prefix}max_value"
             )
             num_steps = st.number_input(
                 "No. steps", value=var_steps, min_value=2, key=f"{key_prefix}num_steps"
             )
             scale = st.selectbox(
-                "Step interval",
+                "Step scale",
                 options=["linear", "log"],
                 index=["linear", "log"].index(var_scale),
                 key=f"{key_prefix}scale",

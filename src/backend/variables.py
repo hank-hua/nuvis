@@ -14,6 +14,7 @@ class VariableSetting:
     default_high: float
     num_steps: int
     scale: str = "linear"
+    display_format: str = ".4g"
 
     def __post_init__(self):
         if self.min_value >= self.max_value:
@@ -22,3 +23,15 @@ class VariableSetting:
             raise ValueError(f"num_steps must be at least 2, got {self.num_steps}")
         if self.scale not in ("linear", "log"):
             raise ValueError(f"scale must be 'linear' or 'log', got {self.scale}")
+
+        try:
+            _ = format(self.default_value, self.display_format)
+        except ValueError as error:
+            raise ValueError(
+                f"Invalid display_format {self.display_format!r}"
+            ) from error
+
+    def format_value(self, value: float) -> str:
+        """Format a value for labels, legends, and other rendered text."""
+        return format(value, self.display_format)
+

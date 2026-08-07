@@ -9,7 +9,12 @@ import plotly.graph_objects as go
 import streamlit as st
 from plotly.colors import sample_colorscale
 
-from backend.defaults import COLUMN_TO_PRETTY, VARIABLE_TO_PRETTY
+from backend.defaults import (
+    COLUMN_TO_PRETTY,
+    VARIABLE_TO_PRETTY,
+    format_variable_value,
+    get_variable_display_format,
+)
 from backend.functional_parameters import get_parameter_value, replace_parameter
 from backend.nufast import calc_prob, get_ellipse, get_probs_1d, get_probs_2d
 from backend.parameter import ParameterSet
@@ -160,7 +165,10 @@ class Plotter:
                 pars=replace_parameter(pars, overlay_var, value),
                 **kwargs,
             )
-            label = f"{self._resolve_label(overlay_var, None)}={value:.4g}"
+            label = (
+                f"{self._resolve_label(overlay_var, None)}="
+                f"{format_variable_value(overlay_var, value)}"
+            )
 
             for trace_index, trace in enumerate(traces):
                 if plot_method == "2d":
@@ -237,6 +245,7 @@ class Plotter:
             matter=self.matter,
         )
         x_label = self._resolve_label(x_var, None)
+        x_format = get_variable_display_format(x_var)
         y_labels = [COLUMN_TO_PRETTY[y_var] for y_var in y_vars]
         return [
             go.Scatter(
@@ -248,7 +257,8 @@ class Plotter:
                 ),
                 name=y_labels[i],
                 hovertemplate=(
-                    f"{x_label}: %{{x}}<br>{y_labels[i]}: %{{y:.4f}}<extra></extra>"
+                    f"{x_label}: %{{x:{x_format}}}<br>"
+                    f"{y_labels[i]}: %{{y:.4f}}<extra></extra>"
                 ),
             )
             for i in range(len(y_vars))
@@ -295,6 +305,8 @@ class Plotter:
         x_label = self._resolve_label(x_var, None)
         y_label = self._resolve_label(y_var, None)
         z_label = self._resolve_label(z_var, None)
+        x_format = get_variable_display_format(x_var)
+        y_format = get_variable_display_format(y_var)
         Z, _ = get_probs_2d(
             pars,
             x_values,
@@ -314,7 +326,9 @@ class Plotter:
                     colorscale=heatmap_colorscale,
                     colorbar=dict(title=z_label),
                     hovertemplate=(
-                        f"{x_label}: %{{x}}<br>{y_label}: %{{y}}<br>{z_label}: %{{z:.4f}}<extra></extra>"
+                        f"{x_label}: %{{x:{x_format}}}<br>"
+                        f"{y_label}: %{{y:{y_format}}}<br>"
+                        f"{z_label}: %{{z:.4f}}<extra></extra>"
                     ),
                 )
             )
@@ -394,6 +408,7 @@ class Plotter:
             matter=self.matter,
         )
         t_label = self._resolve_label(t_var, None)
+        t_format = get_variable_display_format(t_var)
         x_label = self._resolve_label(x_var, None)
         y_label = self._resolve_label(y_var, None)
         labels = ["NO", "IO"]
@@ -408,7 +423,7 @@ class Plotter:
                     customdata=t_values,
                     hovertemplate=(
                         f"{x_label}: %{{x:.4f}}<br>{y_label}: %{{y:.4f}}"
-                        f"<br>{t_label}: %{{customdata:.4f}}"
+                        f"<br>{t_label}: %{{customdata:{t_format}}}"
                     ),
                 )
             )
@@ -745,7 +760,7 @@ class Plotter:
             frames.append(
                 go.Frame(
                     data=frame_data,
-                    name=f"{val:.2f}",
+                    name=format_variable_value(animate_var, val),
                 )
             )
 
