@@ -390,9 +390,11 @@ class Plotter:
             Single-element list containing the scatter trace.
         """
         pars = self.pars if pars is None else pars
+        normal_pars = pars.replace(dmsq31=abs(pars["dmsq31"]))
+        inverted_pars = pars.replace(dmsq31=-abs(pars["dmsq31"]))
         traces: list[go.Scatter] = []
         ellipse_NO = get_ellipse(
-            pars,
+            normal_pars,
             t_var=t_var,
             t_values=t_values,
             x_var=x_var,
@@ -400,7 +402,7 @@ class Plotter:
             matter=self.matter,
         )
         ellipse_IO = get_ellipse(
-            pars.replace(dmsq31=-pars["dmsq31"]),
+            inverted_pars,
             t_var=t_var,
             t_values=t_values,
             x_var=x_var,
@@ -432,8 +434,8 @@ class Plotter:
             symbols_list = ["◕", "○", "◔", "◑"]
             sizes_list = [12, 18, 12, 12]
             for dcp in dcp_list:
-                no_pars = pars.replace(delta=dcp)
-                io_pars = pars.replace(delta=dcp, dmsq31=-pars["dmsq31"])
+                no_pars = normal_pars.replace(delta=dcp)
+                io_pars = inverted_pars.replace(delta=dcp)
                 no_oscres = calc_prob(no_pars, matter=self.matter)
                 io_oscres = calc_prob(io_pars, matter=self.matter)
                 traces.append(
