@@ -10,7 +10,7 @@ import streamlit as st
 from plotly.colors import sample_colorscale
 
 from backend.defaults import COLUMN_TO_PRETTY, VARIABLE_TO_PRETTY
-from backend.functional_parameters import replace_parameter
+from backend.functional_parameters import get_parameter_value, replace_parameter
 from backend.nufast import calc_prob, get_ellipse, get_probs_1d, get_probs_2d
 from backend.parameter import ParameterSet
 
@@ -785,11 +785,13 @@ class Plotter:
         x_label, y_label, title = self._resolve_labels(
             plot_method, plot_kwargs, x_label, y_label, title
         )
+        # Start at the frame nearest the parameter value represented by the plot.
+        closest_index = int(np.argmin(np.abs(np.asarray(animate_values)-get_parameter_value(self.pars,animate_var))))
         updatemenus, sliders = self._create_animation_controls(
-            frames, animate_var, frame_duration
+            frames, animate_var, frame_duration, active_index=closest_index
         )
 
-        self.fig = go.Figure(data=frames[0].data, frames=frames)
+        self.fig = go.Figure(data=frames[closest_index].data, frames=frames)
         self.fig.update_layout(
             title=title,
             xaxis_title=x_label,
@@ -798,9 +800,10 @@ class Plotter:
             sliders=sliders,
         )
 
-        if frames and frames[0].layout:
-            self.fig.update_xaxes(range=frames[0].layout.xaxis.range)
-            self.fig.update_yaxes(range=frames[0].layout.yaxis.range)
+        initial_frame = frames[closest_index]
+        if initial_frame.layout:
+            self.fig.update_xaxes(range=initial_frame.layout.xaxis.range)
+            self.fig.update_yaxes(range=initial_frame.layout.yaxis.range)
 
         return self.fig
 
@@ -818,6 +821,7 @@ class Plotter:
         frames: list[go.Frame],
         animate_var: str,
         frame_duration: int,
+        active_index: int = 0,
     ) -> tuple[list, list]:
         """
         Build Plotly updatemenus and sliders for animation controls.
@@ -877,6 +881,7 @@ class Plotter:
 
         sliders = [
             dict(
+                active=active_index,
                 steps=[
                     dict(
                         method="animate",

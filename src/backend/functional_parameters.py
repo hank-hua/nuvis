@@ -10,10 +10,11 @@ from .parameter import ParameterSet
 
 @dataclass(frozen=True)
 class FunctionalParameter:
-    """A plotting variable that updates one or more physical parameters."""
+    """A plotting variable derived from one or more physical parameters."""
 
     name: str
     apply: Callable[[ParameterSet, float], ParameterSet]
+    get_value: Callable[[ParameterSet], float]
 
 
 def _l_over_e(pars: ParameterSet, value: float) -> ParameterSet:
@@ -35,9 +36,23 @@ def _l_at_constant_l_over_e(pars: ParameterSet, value: float) -> ParameterSet:
 
 
 FUNCTIONAL_PARAMETERS: dict[str, FunctionalParameter] = {
-    "L/E": FunctionalParameter("L/E", _l_over_e),
-    "L_constLE": FunctionalParameter("L_constLE", _l_at_constant_l_over_e),
+    "L/E": FunctionalParameter(
+        "L/E", _l_over_e, lambda pars: pars["L"] / pars["E"]
+    ),
+    "L_constLE": FunctionalParameter(
+        "L_constLE", _l_at_constant_l_over_e, lambda pars: pars["L"]
+    ),
 }
+
+
+def get_parameter_value(pars: ParameterSet, parameter: str) -> float:
+    """Return the current value of a physical or registered functional parameter."""
+    functional_parameter = FUNCTIONAL_PARAMETERS.get(parameter)
+    if functional_parameter is not None:
+        return functional_parameter.get_value(pars)
+    if parameter not in pars:
+        raise ValueError(f"Unknown parameter: {parameter!r}")
+    return pars[parameter]
 
 
 def replace_parameter(pars: ParameterSet, parameter: str, value: float) -> ParameterSet:
