@@ -1,31 +1,13 @@
 from dataclasses import dataclass
-from importlib.machinery import SourceFileLoader
-from importlib.util import module_from_spec, spec_from_loader
-from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
+from _vendor.nufast import NuFast
+
 from .defaults import COLUMNS, N_NEWTON
 from .functional_parameters import replace_parameter
 from .parameter import ParameterSet
-
-_nufast_path = (
-    Path(__file__).resolve().parents[2] / "external" / "nufast" / "py" / "NuFast.py"
-)
-if not _nufast_path.exists():
-    raise FileNotFoundError(f"NuFast.py not found at {_nufast_path}")
-
-_spec = spec_from_loader(
-    "nufast_external", SourceFileLoader("nufast_external", str(_nufast_path))
-)
-if _spec is None or _spec.loader is None:
-    raise ImportError("Unable to load NuFast module from external submodule")
-
-_module = module_from_spec(_spec)
-_spec.loader.exec_module(_module)
-
-NuFast = _module
 
 
 @dataclass
