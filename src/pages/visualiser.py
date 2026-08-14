@@ -15,7 +15,7 @@ st.set_page_config(
     layout="wide",
 )
 
-st.title("Probability Visualiser")
+st.title("Neutrino Oscillation Probability")
 
 view = st.segmented_control(
     "Visualisation",

@@ -1,3 +1,0 @@
-[submodule "external/nufast"]
-	path = external/nufast
-	url = https://github.com/PeterDenton/NuFast-LBL.git

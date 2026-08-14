@@ -2,6 +2,7 @@ from pathlib import Path
 
 import streamlit as st
 
+ABOUT_PATH = Path(__file__).resolve().parent / "content" / "about.md"
+
 st.header("About")
-README_PATH = Path(__file__).resolve().parents[2] / "README.md"
-st.markdown(README_PATH.read_text(encoding="utf-8"))
+st.markdown(ABOUT_PATH.read_text(encoding="utf-8"))

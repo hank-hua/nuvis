@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import streamlit as st
 
 st.set_page_config(
@@ -13,3 +15,14 @@ pages = [
 
 navigation = st.navigation(pages)
 navigation.run()
+
+HELP_PATH = Path(__file__).resolve().parent / "pages" / "content" / "help.md"
+
+
+@st.dialog("Help")
+def help_popup() -> None:
+    st.markdown(HELP_PATH.read_text(encoding="utf-8"))
+with st.sidebar:
+    feedback = st.link_button(url="https://github.com/hank-hua/nuvis/issues", label="Feedback")
+    if st.button("Help", key="help_button"):
+        help_popup()
