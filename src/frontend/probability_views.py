@@ -50,7 +50,7 @@ def render_1d() -> None:
             "E",
             key_prefix="1d_x_",
             expander_label="X-axis",
-            expanded=True,
+            expanded=False,
             orientation="vertical",
             use_default_range=True,
         )
@@ -68,12 +68,12 @@ def render_1d() -> None:
             )
 
         with st.popover("Overlay settings"):
-            do_overlay = st.toggle("Overlay", value=False, key="prob_1d_overlay")
+            do_overlay = st.toggle("Overlay", value=True, key="prob_1d_overlay")
             overlay_var, overlay_values = parameter_range_setter(
-                "s23sq",
+                "dmsq31",
                 key_prefix="1d_overlay_",
                 use_default_range=True,
-                override={"num_steps": 5},
+                override={"num_steps": 2, "min_value": -2.5e-3, "max_value": 2.5e-3},
             )
 
     if do_overlay and overlay_var == x_var:
@@ -125,27 +125,27 @@ def render_2d() -> None:
             key_prefix="2d_x_",
             use_default_range=True,
             expander_label="X-axis",
-            expanded=True,
+            expanded=False,
             orientation="vertical",
-            override={"num_steps": 50},
+            override={"num_steps": 30},
         )
         y_var, y_values = parameter_range_setter(
             "delta",
             key_prefix="2d_y_",
             use_default_range=True,
             expander_label="Y-axis",
-            expanded=True,
+            expanded=False,
             orientation="vertical",
-            override={"num_steps": 50},
+            override={"num_steps": 30},
         )
 
         with st.popover("Animation settings"):
-            do_animate = st.toggle("Animate", value=False, key="prob_2d_animate")
+            do_animate = st.toggle("Animate", value=True, key="prob_2d_animate")
             anim_var, anim_values = parameter_range_setter(
                 "E",
                 key_prefix="2d_anim_",
                 use_default_range=True,
-                override={"num_steps": 10},
+                override={"num_steps": 30, "min_value": 1.0, "max_value": 4.0},
             )
 
         with st.popover("Overlay settings"):
@@ -221,7 +221,7 @@ def render_biprob() -> None:
             use_default_range=True,
             override={"num_steps": 20},
             expander_label="Ellipse parameter",
-            expanded=True,
+            expanded=False,
             orientation="vertical",
         )
 
@@ -238,12 +238,12 @@ def render_biprob() -> None:
             )
 
         with st.popover("Overlay settings"):
-            do_overlay = st.toggle("Overlay", value=False, key="biprob_overlay")
+            do_overlay = st.toggle("Overlay", value=True, key="biprob_overlay")
             overlay_var, overlay_values = parameter_range_setter(
                 "s23sq",
                 key_prefix="biprob_overlay_",
                 use_default_range=True,
-                override={"num_steps": 5},
+                override={"num_steps": 2, "min_value": 0.45, "max_value": 0.55},
             )
 
     if do_overlay and overlay_var == t_var:
